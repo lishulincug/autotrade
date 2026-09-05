@@ -41,10 +41,13 @@ jobs:
           chmod +x gf_run.sh
           bash gf_run.sh
 
-      - name: 创建gh-pages目录并复制HTML文件
+      - name: 组装 gh-pages 静态站点（统一入口 + 各策略页）
         run: |
-          mkdir -p gh-pages
-          cp gf_strategy_dashboard.html gh-pages/index.html
+          mkdir -p gh-pages/web_dashboard
+          cp index.html dashboards.json gh-pages/
+          cp dual_bottom_dashboard.html dual_bottom_ladder_dashboard.html gh-pages/
+          cp gf_strategy_dashboard.html gh-pages/
+          cp web_dashboard/index.html web_dashboard/dashboard_data.json gh-pages/web_dashboard/
 
       - name: 把生成的html部署到gh-pages分支
         uses: peaceiris/actions-gh-pages@v4

@@ -875,17 +875,13 @@ def main():
 
     # ---- HTML 报告 ----
     print("生成 HTML 可视化报告...")
-    # 内联 plotly.js（离线可用，不依赖CDN）
-    try:
-        from plotly.offline import get_plotlyjs
-        plotly_inline = f"<script>{get_plotlyjs()}</script>"
-    except Exception:
-        plotly_inline = '<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>'
+    # 使用 CDN 加载 plotly.js，避免把 ~3–4MB 脚本内联进 HTML
+    plotly_cdn = '<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>'
 
     html_parts = []
     html_parts.append("""<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
 <title>广发约定净值转换 · 多基金多策略对比</title>
-""" + plotly_inline + """
+""" + plotly_cdn + """
 <style>
 body{font-family:'Microsoft YaHei',Arial,sans-serif;margin:0;background:#f5f6f8;color:#222}
 .container{max-width:1180px;margin:0 auto;padding:24px}

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>策略看板入口</title>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --card: #fff;
+    --text: #1a2332;
+    --muted: #6b7a90;
+    --line: #e4e9f0;
+    --accent: #1f4e79;
+    --accent2: #2c6fbb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    background:
+      radial-gradient(900px 420px at 8% -10%, #d9e8f8 0%, transparent 55%),
+      radial-gradient(700px 380px at 100% 0%, #e8f2ea 0%, transparent 50%),
+      var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 48px 24px 64px; }
+  header h1 { margin: 0 0 8px; font-size: 28px; color: var(--accent); }
+  header p { margin: 0 0 28px; color: var(--muted); font-size: 14px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+  a.card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  a.card:hover {
+    transform: translateY(-2px);
+    border-color: #b7cceb;
+    box-shadow: 0 8px 20px rgba(31,78,121,.12);
+  }
+  a.card .id {
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--accent2);
+    margin-bottom: 8px;
+  }
+  a.card h2 { margin: 0 0 8px; font-size: 17px; line-height: 1.35; }
+  a.card p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .err {
+    background: #fff5f5;
+    border: 1px solid #f5c2c2;
+    color: #a33;
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 13px;
+  }
+  footer {
+    margin-top: 36px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>策略看板入口</h1>
+    <p>选择报告打开。新增页面只需在 <code>dashboards.json</code> 登记一项。</p>
+  </header>
+  <div id="grid" class="grid"></div>
+  <footer>静态托管 · GitHub Pages · 无后端服务</footer>
+</div>
+<script>
+async function loadDashboards() {
+  const grid = document.getElementById('grid');
+  try {
+    const res = await fetch('./dashboards.json?_t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const items = await res.json();
+    if (!Array.isArray(items) || !items.length) throw new Error('dashboards.json 为空');
+    grid.innerHTML = items.map(item => `
+      <a class="card" href="${item.href}">
+        <div class="id">${item.id || ''}</div>
+        <h2>${item.title || item.href}</h2>
+        <p>${item.desc || ''}</p>
+      </a>
+    `).join('');
+  } catch (e) {
+    grid.innerHTML = `<div class="err">无法加载 dashboards.json（${e.message}）。
+      请用静态服务器打开本目录，例如：<code>python -m http.server 8080</code>，
+      或确认该文件已与 index.html 一同部署。</div>`;
+  }
+}
+loadDashboards();
+</script>
+</body>
+</html>
