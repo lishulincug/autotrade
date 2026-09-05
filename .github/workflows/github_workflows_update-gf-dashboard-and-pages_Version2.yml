@@ -1,0 +1,80 @@
+name: Update GF dashboard and GitHub Pages
+
+on:
+  schedule:
+    # UTC 时间：每月 1 日和 15 日 00:00
+    - cron: '0 0 1,15 * *'
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  update-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python (if needed)
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install Python deps if present
+        run: |
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run dashboard update script
+        id: update
+        run: |
+          set -e
+          # 尝试常见的更新脚本位置和命令；如有自定义请在仓库中调整或告诉我
+          if [ -x ./scripts/update-gf-dashboard.sh ]; then
+            ./scripts/update-gf-dashboard.sh
+          elif [ -f ./scripts/update_gf_dashboard.py ]; then
+            python ./scripts/update_gf_dashboard.py
+          elif [ -f ./update-dashboard.sh ]; then
+            ./update-dashboard.sh
+          else
+            echo "No known update script found; skipping dashboard update."
+          fi
+
+      - name: Commit & push changes (if any)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "chore: update GF dashboard [skip ci]" || echo "commit failed or nothing to commit"
+            # Push using token so the action can push back to repo
+            git push "https://${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" HEAD:$(echo "${{ github.ref }}" | sed 's#refs/heads/##')
+          else
+            echo "No changes to commit"
+          fi
+
+      - name: Detect Pages output directory
+        id: detect
+        run: |
+          if [ -d docs ]; then echo "dir=docs" >> $GITHUB_OUTPUT
+          elif [ -d public ]; then echo "dir=public" >> $GITHUB_OUTPUT
+          elif [ -d site ]; then echo "dir=site" >> $GITHUB_OUTPUT
+          else echo "dir=" >> $GITHUB_OUTPUT; fi
+
+      - name: Configure GitHub Pages (only if build dir exists)
+        if: steps.detect.outputs.dir != ''
+        uses: actions/configure-pages@v3
+
+      - name: Upload Pages artifact (only if build dir exists)
+        if: steps.detect.outputs.dir != ''
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: ${{ steps.detect.outputs.dir }}
