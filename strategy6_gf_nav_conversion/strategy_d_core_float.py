@@ -138,6 +138,8 @@ def generate_core_float_grid(net_value_series,
     sell_list = apply_share_jitter(sell_list, seed_base=202, enabled=jitter)
 
     meta = {
+        'core_ratio': core_ratio,
+        'float_ratio': float_ratio,
         'nv_q20': nv_q20,
         'nv_q90': nv_q90,
         'float_share_total': round(float_share_total, 2),

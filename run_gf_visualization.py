@@ -52,6 +52,61 @@ STRATEGIES = [
     ('G', '阶梯止盈映射', run_g, '#8c564b'),
 ]
 
+# 弹窗策略简介与关键参数说明（静态文案；动态值由 build_params_map 追加）
+STRATEGY_HELP = {
+    'A': {
+        'intro': '用 warmup 期历史净值分位数划定固定买卖网格：净值≤档买入、≥档止盈；止盈后重置更低买入档，形成买低卖高循环。',
+        'keys': [
+            '网格：warmup 全历史分位数静态划定（非滚动重算）',
+            '默认买档约 Q15–Q70，卖档约 Q75–Q90',
+            '适合波动适中、长期有中枢的标的',
+        ],
+    },
+    'B': {
+        'intro': '用滚动窗口计算当前净值百分位：分位偏低买入、偏高止盈，网格随市场自适应。',
+        'keys': [
+            '默认滚动窗口约 120 日',
+            '买入阈值约 30%/20%/10% 分位，止盈约 70%/80%/90%',
+            '比 A 更跟趋势，但震荡市可能更频繁转换',
+        ],
+    },
+    'C': {
+        'intro': '跟踪滚动高点：从高点回撤 X% 分档买入；相对持仓成本上涨 Y% 分档止盈。',
+        'keys': [
+            '默认高点窗口约 60 日',
+            '买入回撤约 3%/6%/9%/12%/15%，止盈约 3%/5%/8%',
+            '适合“跌出来的机会、涨出来的利润”；相对规则需映射为固定净值才能录入广发',
+        ],
+    },
+    'D': {
+        'intro': '持仓拆成底仓与浮动仓：底仓低位买入后长期持有（不设止盈），浮动仓做高抛低吸，避免纯网格在牛市卖飞。',
+        'keys': [
+            '默认仓位：底仓 40% / 浮动 60%（以目标份额近似）',
+            '买入最低档 + Q20 加仓计入底仓；卖出总份额=浮动仓，底仓永不卖',
+            '净值≥历史 Q90 时仍只卖浮动仓；买入档间距≥3%',
+            '回测启用持有＜7天 1.5% 惩罚赎回费',
+        ],
+    },
+    'E': {
+        'intro': '用基金自身近 3 年净值分位划分交易区：低估只买、震荡网格、高估只卖，每月或跨区切换条件单。',
+        'keys': [
+            '低估区 ≤20% 分位：只买不卖，买入份额放大',
+            '震荡区 20%–80%：标准动态网格双向触发',
+            '高估区 ≥80% 分位：只卖不买',
+            '买入档间距≥3%；回测启用＜7天 1.5% 惩罚费',
+        ],
+    },
+    'G': {
+        'intro': '用多档固定净值模拟移动止损：净值每上台阶激活对应止损档，更高台阶作废更低止损。仅适合明确主升浪。',
+        'keys': [
+            '上涨台阶约 +5%/+10%/+15%/+20% 激活对应回撤止损',
+            '实盘需手动删除低档止损单、挂上新档',
+            '震荡市易反复触发磨损收益，不建议长期启用',
+            '买入档间距≥3%；回测启用＜7天 1.5% 惩罚费',
+        ],
+    },
+}
+
 # ---------- 回测区间配置 ----------
 # 下拉选项：近1年 / 近2年 / 近3年 / 全部，默认近3年
 # 数据不足 N 年的基金自动用其全部可用数据（回测区间列如实显示实际跨度）
@@ -556,6 +611,75 @@ def build_sortable_table_html(df, table_id='summary-table'):
     return '\n'.join(html)
 
 
+def _role_label(role):
+    """条件单角色中文标签"""
+    mapping = {
+        'core': '底仓',
+        'float': '浮动',
+        'buy': '买入',
+        'sell': '止盈',
+        'trail_stop': '止损',
+        'rotate': '轮动',
+    }
+    return mapping.get(role, role or '')
+
+
+def _build_strategy_help_html(sid, eng, st):
+    """拼策略简介 + 关键参数（静态说明 + 运行时动态值）"""
+    help_info = STRATEGY_HELP.get(sid, {})
+    intro = help_info.get('intro', '')
+    keys = list(help_info.get('keys', []))
+    meta = getattr(eng, 'gf_meta', None) or {}
+
+    # 动态补充
+    if sid == 'D':
+        cr = meta.get('core_ratio', 0.40)
+        fr = meta.get('float_ratio', 0.60)
+        keys.insert(0, f'本次回测仓位：底仓 {cr:.0%} / 浮动 {fr:.0%}')
+        if meta.get('nv_q20') is not None:
+            keys.append(f'极端参考：Q20={_fmt_nv(meta["nv_q20"])}（加仓底仓） / Q90={_fmt_nv(meta["nv_q90"])}（只卖浮动）')
+        if meta.get('core_share_total') is not None:
+            keys.append(f'目标份额：底仓合计 {meta.get("core_share_total")} / 浮动合计 {meta.get("float_share_total")}')
+        if st.get('底仓份额') is not None:
+            keys.append(
+                f'回测成交：底仓买入 {st.get("底仓份额")} · 浮动买入 {st.get("浮动买入份额")} · '
+                f'浮动卖出 {st.get("浮动卖出份额")}'
+            )
+        if st.get('短期惩罚费(元)'):
+            keys.append(f'短期惩罚费合计 {st.get("短期惩罚费(元)")} 元')
+    elif sid == 'E':
+        zone = getattr(eng, 'gf_zone', None) or st.get('当前区间')
+        pct = getattr(eng, 'gf_percentile', None)
+        if pct is None and st.get('当前分位') is not None:
+            pct = st.get('当前分位')
+        zone_label = {'under': '低估·只买', 'mid': '震荡·网格', 'over': '高估·只卖'}.get(zone, zone or '—')
+        keys.insert(0, f'当前区间：{zone_label}' + (f'（分位 {float(pct)*100:.1f}%）' if pct is not None else ''))
+        if st.get('短期惩罚费(元)'):
+            keys.append(f'短期惩罚费合计 {st.get("短期惩罚费(元)")} 元')
+    elif sid == 'G':
+        level = getattr(eng, 'gf_active_level', None)
+        if level is None and st.get('当前止损档') is not None:
+            level = int(st.get('当前止损档', 0)) - 1
+        ladder = getattr(eng, 'gf_ladder', None) or []
+        if level is not None and level >= 0:
+            keys.insert(0, f'当前有效止损档：第 {level + 1} 档（共 {len(ladder) or "?"} 档台阶）')
+        else:
+            keys.insert(0, f'当前尚未激活止损档（台阶数 {len(ladder) or "—"}）')
+        if st.get('短期惩罚费(元)'):
+            keys.append(f'短期惩罚费合计 {st.get("短期惩罚费(元)")} 元')
+
+    parts = ['<div class="strategy-help">']
+    if intro:
+        parts.append(f'<div class="help-intro">{intro}</div>')
+    if keys:
+        parts.append('<ul class="param-meta">')
+        for k in keys:
+            parts.append(f'<li>{k}</li>')
+        parts.append('</ul>')
+    parts.append('</div>')
+    return '\n'.join(parts)
+
+
 def build_params_map(valid_results):
     """构建参数查找映射：code_sid -> 参数HTML（供点击表格行弹出模态框）"""
     params_map = {}
@@ -564,21 +688,38 @@ def build_params_map(valid_results):
             sres = res['strategies'].get(sid, {})
             key = f"{res['code']}_{sid}"
             eng = sres.get('engine')
-            buy_list = getattr(eng, 'gf_buy_list', None) or []
-            sell_list = getattr(eng, 'gf_sell_list', None) or []
-            box = [f'<h3 style="margin:0 0 12px;color:{color}">{res["name"]}（{res["code"]}）'
-                   f' · 策略{sid} {sname}</h3>']
-            box.append('<table style="font-size:13px;margin-bottom:12px">'
-                       '<thead><tr><th>方向</th><th>序号</th><th>约定净值</th><th>转换份额</th></tr></thead><tbody>')
-            for i, b in enumerate(buy_list, 1):
-                box.append(f'<tr><td style="color:#1f77b4">买入</td><td>{i}</td>'
-                           f'<td>{_fmt_nv(b["trigger_net_value"])}</td><td>{b["share"]}</td></tr>')
-            for i, s in enumerate(sell_list, 1):
-                box.append(f'<tr><td style="color:#d6372f">止盈</td><td>{i}</td>'
-                           f'<td>{_fmt_nv(s["trigger_net_value"])}</td><td>{s["share"]}</td></tr>')
-            box.append('</tbody></table>')
+            buy_list = getattr(eng, 'gf_buy_list', None) or [] if eng else []
+            sell_list = getattr(eng, 'gf_sell_list', None) or [] if eng else []
             m = sres.get('metrics', {})
             st = sres.get('stats', {})
+
+            box = [f'<h3 style="margin:0 0 12px;color:{color}">{res["name"]}（{res["code"]}）'
+                   f' · 策略{sid} {sname}</h3>']
+            box.append(_build_strategy_help_html(sid, eng, st))
+
+            box.append('<table class="param-detail-table" style="font-size:13px;margin-bottom:12px">'
+                       '<thead><tr><th>方向</th><th>序号</th><th>约定净值</th>'
+                       '<th>转换份额</th><th>角色</th><th>备注</th></tr></thead><tbody>')
+            for i, b in enumerate(buy_list, 1):
+                role = _role_label(b.get('role', ''))
+                note = b.get('note', '') or ''
+                box.append(
+                    f'<tr><td style="color:#1f77b4">买入</td><td>{i}</td>'
+                    f'<td>{_fmt_nv(b["trigger_net_value"])}</td><td>{b["share"]}</td>'
+                    f'<td>{role}</td><td class="note-cell">{note}</td></tr>'
+                )
+            for i, s in enumerate(sell_list, 1):
+                role = _role_label(s.get('role', ''))
+                note = s.get('note', '') or ''
+                box.append(
+                    f'<tr><td style="color:#d6372f">止盈</td><td>{i}</td>'
+                    f'<td>{_fmt_nv(s["trigger_net_value"])}</td><td>{s["share"]}</td>'
+                    f'<td>{role}</td><td class="note-cell">{note}</td></tr>'
+                )
+            if not buy_list and not sell_list:
+                box.append('<tr><td colspan="6" style="color:#999">暂无约定净值参数</td></tr>')
+            box.append('</tbody></table>')
+
             box.append(f'<div style="font-size:12.5px;color:#555">'
                        f'累计收益率 <b style="color:#d6372f">{m.get("累计收益率(%)",0):.2f}%</b> · '
                        f'年化 {m.get("年化收益率(%)",0):.2f}% · '
@@ -788,12 +929,19 @@ tr:nth-child(even){background:#fafbfc}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);
  z-index:9999;align-items:center;justify-content:center}
 .modal-overlay.active{display:flex}
-.modal-box{background:#fff;border-radius:10px;padding:24px;max-width:720px;
+.modal-box{background:#fff;border-radius:10px;padding:24px;max-width:780px;
  width:90%;max-height:80vh;overflow:auto;position:relative}
 .modal-close{position:absolute;top:10px;right:14px;cursor:pointer;font-size:22px;color:#999}
+.strategy-help{background:#f5f7fa;border:1px solid #e4e8ee;border-radius:8px;
+ padding:10px 12px;margin:0 0 14px;font-size:12.5px;line-height:1.55;color:#444}
+.strategy-help .help-intro{margin:0 0 6px;color:#333}
+.strategy-help .param-meta{margin:0;padding-left:18px}
+.strategy-help .param-meta li{margin:2px 0}
+.param-detail-table th,.param-detail-table td{padding:4px 8px;text-align:left}
+.param-detail-table .note-cell{color:#666;font-size:12px;max-width:220px}
 </style></head><body><div class="container">
 <h1>广发约定净值转换 · 多基金多策略可视化对比</h1>
-<div class="sub">A 动态滚动网格 / B 估值分位网格 / C 高点回撤止盈网格 · 初始资金100万 · 天天红B年化2%</div>
+<div class="sub">A 动态滚动 / B 估值分位 / C 高点回撤 / D 底仓+浮动 / E 分位双区 / G 阶梯止盈 · 初始资金100万 · 天天红B年化2% · 点击表格行查看策略说明与参数</div>
 <div class="card"><div class="fund-title">📊 多基金 × 多策略 汇总对比（点击表头可升/降序排序）
 <select class="range-selector" id="rangeSelector" onchange="switchRange(this.value)">""")
 
