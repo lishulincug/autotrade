@@ -5,10 +5,18 @@ on:
     - cron: '0 0 1,16 * *'
   # 允许网页上手动点按钮触发调试，非常重要
   workflow_dispatch:
+  # main 分支有推送时同步构建部署
+  push:
+    branches: [main]
 
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
+    env:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      PYTHONIOENCODING: utf-8
+      PYTHONUTF8: "1"
     permissions:
       contents: write
       pages: write
