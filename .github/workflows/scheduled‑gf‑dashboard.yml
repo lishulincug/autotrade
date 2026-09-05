@@ -1,6 +1,5 @@
 name: 每半月更新策略仪表盘
 on:
-  # cron UTC时间！！UTC=北京时间‑8h；示例：每月1号、16号凌晨0点UTC，对应北京时间早上8点执行
   # cron UTC时间！！UTC=北京时间-8h；示例：每月1号、16号凌晨0点UTC，对应北京时间早上8点执行
   schedule:
     - cron: '0 0 1,16 * *'
@@ -9,12 +8,10 @@ on:
 
 jobs:
   build_and_deploy:
-    runs-on: ubuntu‑latest
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pages: write
-      id‑token: write
       id-token: write
 
     steps:
@@ -22,15 +19,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 设置Python环境
-        uses: actions/setup‑python@v5
         uses: actions/setup-python@v5
         with:
-          python‑version: "3.11"
           python-version: "3.11"
 
       - name: 安装项目python依赖
         run: |
-          python ‑m pip install --upgrade pip
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
@@ -39,12 +33,9 @@ jobs:
           chmod +x gf_run.sh
           bash gf_run.sh
 
-      - name: 把生成的html部署到gh‑pages分支
-        uses: peaceiris/actions‑gh‑pages@v4
       - name: 把生成的html部署到gh-pages分支
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./
-          publish_branch: gh‑pages
           publish_branch: gh-pages
