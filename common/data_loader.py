@@ -37,9 +37,6 @@ def fetch_real_etf_kline(code: str, name: str = '',
     从东方财富公开接口拉取ETF/指数的日K线（OHLCV）
     失败则返回空DataFrame
     """
-    if not HAS_REQUESTS:
-        return pd.DataFrame()
-
     cache_path = os.path.join(CACHE_DIR, f'etf_{code}_{start_date}_{end_date}.csv')
     if use_cache and os.path.exists(cache_path):
         try:
@@ -48,6 +45,9 @@ def fetch_real_etf_kline(code: str, name: str = '',
                 return df
         except Exception:
             pass
+
+    if not HAS_REQUESTS:
+        return pd.DataFrame()
 
     os.makedirs(CACHE_DIR, exist_ok=True)
     secid = _get_secid(code)
@@ -228,9 +228,6 @@ def fetch_otc_fund_nav(fund_code: str, start_date='2019-01-01',
     接口: http://api.fund.eastmoney.com/f10/lsjz
     返回 DataFrame: index=date, 含 close(=单位净值) 列
     """
-    if not HAS_REQUESTS:
-        return pd.DataFrame()
-
     cache_path = os.path.join(CACHE_DIR, f'fund_{fund_code}_{start_date}_{end_date}.csv')
     if use_cache and os.path.exists(cache_path):
         try:
@@ -239,6 +236,9 @@ def fetch_otc_fund_nav(fund_code: str, start_date='2019-01-01',
                 return df
         except Exception:
             pass
+
+    if not HAS_REQUESTS:
+        return pd.DataFrame()
 
     os.makedirs(CACHE_DIR, exist_ok=True)
     headers = {
@@ -292,29 +292,36 @@ def load_otc_fund_nav(fund_code='021400', fund_name='广发中证红利ETF发起
     """
     加载场外基金历史净值（广发约定净值转换用）
     优先真实数据 -> 失败回退模拟
-    返回 DataFrame: index=date, 含 close 列
+    返回 DataFrame: index=date, 含 close 列；attrs['nav_source'] 为 'real' 或 'sim'
     """
     if USE_REAL_DATA:
         for attempt in range(3):
             df_real = fetch_otc_fund_nav(fund_code, start_date, end_date)
             if len(df_real) > 60:
+                df_real = df_real.copy()
                 df_real['etf_name'] = fund_name
+                df_real.attrs['nav_source'] = 'real'
                 if verbose:
                     print(f'  [真实净值] {fund_code} {fund_name}: '
                           f'{len(df_real)}条 {df_real.index[0].date()}~{df_real.index[-1].date()}')
                 return df_real
             time.sleep(0.8)
 
-    # 回退：模拟净值数据
+    # 回退：模拟净值数据（按基金代码派生种子，避免全基金同一序列）
     if verbose:
         print(f'  [模拟净值] {fund_code} {fund_name}')
     dates = pd.date_range(start=start_date, end=end_date, freq='B')
-    np.random.seed(2024)
+    try:
+        seed = int(str(fund_code).split('.')[0]) % (2**31 - 1)
+    except (TypeError, ValueError):
+        seed = 2024
+    np.random.seed(seed)
     daily_ret = 0.04 / 252
     daily_vol = 0.18 / np.sqrt(252)
     rets = np.random.normal(daily_ret, daily_vol, len(dates))
     navs = 1.0 * np.cumprod(1 + rets)
     df = pd.DataFrame({'close': navs, 'etf_name': fund_name}, index=dates)
+    df.attrs['nav_source'] = 'sim'
     return df
 
 

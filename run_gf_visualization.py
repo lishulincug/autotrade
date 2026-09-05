@@ -651,6 +651,7 @@ def main():
     # 多区间结果: {range_key: [results]} 与 {code: {range_key: result}}
     all_results_by_range = {rk: [] for rk, _, _ in RANGES}
     fund_results_map = {}  # code -> {range_key: result}
+    n_real, n_sim = 0, 0
 
     for i, (code, name) in enumerate(funds, 1):
         print(f"  [{i}/{len(funds)}] {code} {name[:20]}", end=' ', flush=True)
@@ -658,6 +659,13 @@ def main():
             nav_data = load_otc_fund_nav(code, name,
                                          start_date='2019-01-01', end_date='2026-12-31',
                                          verbose=False)
+            src = nav_data.attrs.get('nav_source', 'unknown')
+            if src == 'real':
+                n_real += 1
+                print('[真实]', end=' ', flush=True)
+            elif src == 'sim':
+                n_sim += 1
+                print('[模拟]', end=' ', flush=True)
             fund_results_map[code] = {}
             if len(nav_data) < MIN_DATA_LEN:
                 print(f"数据不足({len(nav_data)}条)")
@@ -689,6 +697,11 @@ def main():
                        'nav_data': pd.DataFrame(), 'strategies': {}}
                 all_results_by_range[rk].append(res)
                 fund_results_map[code][rk] = res
+
+    print(f"\n净值来源统计: 真实 {n_real} / 模拟 {n_sim}")
+    if n_real == 0 and (n_real + n_sim) > 0:
+        print("错误: 全部基金使用模拟净值，中止生成以免污染 gh-pages 部署")
+        sys.exit(1)
 
     # ---- 各区间汇总表 ----
     summary_dfs = {rk: build_summary_table(results)
