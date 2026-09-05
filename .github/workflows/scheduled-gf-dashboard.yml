@@ -33,9 +33,14 @@ jobs:
           chmod +x gf_run.sh
           bash gf_run.sh
 
+      - name: 创建gh-pages目录并复制HTML文件
+        run: |
+          mkdir -p gh-pages
+          cp gf_strategy_dashboard.html gh-pages/index.html
+
       - name: 把生成的html部署到gh-pages分支
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./
+          publish_dir: ./gh-pages
           publish_branch: gh-pages
