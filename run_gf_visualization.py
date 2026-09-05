@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-广发约定净值转换 · 多基金三策略可视化对比
+广发约定净值转换 · 多基金多策略可视化对比
 ============================================
-读取 fund.txt 中的基金清单，对每只基金运行三种网格策略：
-  A 动态滚动网格 / B 估值分位网格 / C 高点回撤止盈网格
-生成交互式 HTML 报告：
-  - 汇总对比表（基金 × 策略 的收益/回撤/夏普/转换次数）
-  - 每只基金：净值曲线 + 买卖点标记 + 三策略权益曲线对比
+读取 fund.txt 中的基金清单，对每只基金运行网格策略：
+  A 动态滚动网格 / B 估值分位网格 / C 高点回撤止盈
+  D 底仓锁利+浮动网格 / E 净值分位自适应双区 / G 阶梯止盈映射
+（F 多标的轮动为组合层，见 run_gf_rotation.py）
 
 用法：
     python run_gf_visualization.py
@@ -29,6 +28,9 @@ from common.data_loader import load_otc_fund_nav
 from strategy6_gf_nav_conversion.strategy import run_strategy as run_a
 from strategy6_gf_nav_conversion.strategy_b_valuation import run_strategy as run_b
 from strategy6_gf_nav_conversion.strategy_c_drawdown import run_strategy as run_c
+from strategy6_gf_nav_conversion.strategy_d_core_float import run_strategy as run_d
+from strategy6_gf_nav_conversion.strategy_e_dual_zone import run_strategy as run_e
+from strategy6_gf_nav_conversion.strategy_g_ladder_trail import run_strategy as run_g
 
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -45,6 +47,9 @@ STRATEGIES = [
     ('A', '动态滚动网格', run_a, '#1f77b4'),
     ('B', '估值分位网格', run_b, '#ff7f0e'),
     ('C', '高点回撤止盈', run_c, '#2ca02c'),
+    ('D', '底仓锁利+浮动', run_d, '#d62728'),
+    ('E', '分位自适应双区', run_e, '#9467bd'),
+    ('G', '阶梯止盈映射', run_g, '#8c564b'),
 ]
 
 # ---------- 回测区间配置 ----------
@@ -94,7 +99,7 @@ def parse_fund_list(path):
 
 
 def run_all_for_fund(code, name, start_date=None, nav_data=None):
-    """对单只基金运行三策略，返回结果字典
+    """对单只基金运行全部已注册策略，返回结果字典
 
     nav_data: 可选，预加载的净值数据（多区间复用，避免重复IO）
     start_date: 回测起始日期（None=自动warmup；给定日期则从该日起回测）
@@ -161,16 +166,30 @@ def format_strategy_params(sres, sid=''):
     sell_list = getattr(eng, 'gf_sell_list', None) or []
     color = sres.get('color', '#888')
     sname = sres.get('name', '')
+    zone = getattr(eng, 'gf_zone', None)
+    pct = getattr(eng, 'gf_percentile', None)
 
     parts = [f'<div class="param-box"><span class="param-sid" style="color:{color}">●</span> '
              f'<b>策略{sid} {sname}</b>']
+    if zone is not None:
+        zone_label = {'under': '低估只买', 'mid': '震荡网格', 'over': '高估只卖'}.get(zone, zone)
+        extra = f'区间={zone_label}'
+        if pct is not None:
+            extra += f' 分位={float(pct)*100:.1f}%'
+        parts.append(f'<div class="param-row"><span class="param-label">状态:</span> {extra}</div>')
     if buy_list:
-        buys = '/'.join(f'<span class="param-nv">{_fmt_nv(b["trigger_net_value"])}</span>' for b in buy_list)
+        buys = '/'.join(
+            f'<span class="param-nv">{_fmt_nv(b["trigger_net_value"])}</span>'
+            + (f'<sup>{b.get("role","")}</sup>' if b.get('role') else '')
+            for b in buy_list)
         shares = '/'.join(str(b['share']) for b in buy_list)
         parts.append(f'<div class="param-row buy"><span class="param-label">买入净值:</span> {buys} '
                      f'<span class="param-share">份额: {shares}</span></div>')
     if sell_list:
-        sells = '/'.join(f'<span class="param-nv">{_fmt_nv(s["trigger_net_value"])}</span>' for s in sell_list)
+        sells = '/'.join(
+            f'<span class="param-nv">{_fmt_nv(s["trigger_net_value"])}</span>'
+            + (f'<sup>{s.get("role","")}</sup>' if s.get('role') else '')
+            for s in sell_list)
         shares = '/'.join(str(s['share']) for s in sell_list)
         parts.append(f'<div class="param-row sell"><span class="param-label">止盈净值:</span> {sells} '
                      f'<span class="param-share">份额: {shares}</span></div>')
@@ -179,7 +198,7 @@ def format_strategy_params(sres, sid=''):
 
 
 def build_fund_params_block(res):
-    """构建单只基金三策略最新参数展示块"""
+    """构建单只基金多策略最新参数展示块"""
     html = ['<div class="params-block">']
     for sid, sname, fn, color in STRATEGIES:
         sres = res['strategies'].get(sid, {})
@@ -197,7 +216,7 @@ def build_fund_figure(res):
         vertical_spacing=0.08,
         subplot_titles=(
             f"{res['name']}（{res['code']}）净值与买卖点",
-            f"三策略权益曲线 vs 买入持有"
+            f"多策略权益曲线 vs 买入持有"
         )
     )
 
@@ -451,8 +470,8 @@ def build_evaluation_section(df):
                     '</tr>')
     html.append('</tbody></table>')
 
-    # ---- 三策略横向统计 ----
-    html.append('<h3 class="sub-title">④ 三种策略横向统计（跨16只基金）</h3>')
+    # ---- 多策略横向统计 ----
+    html.append('<h3 class="sub-title">④ 各策略横向统计（跨基金）</h3>')
     html.append('<table><thead><tr>'
                 '<th>策略</th><th>基金数</th>'
                 '<th>平均累计%</th><th>平均年化%</th><th>平均回撤%</th>'
@@ -640,7 +659,7 @@ ROW_CLICK_SCRIPT = """
 
 def main():
     print("╔" + "═" * 66 + "╗")
-    print("║" + " " * 8 + "广发约定净值转换 · 多基金三策略可视化" + " " * 20 + "║")
+    print("║" + " " * 8 + "广发约定净值转换 · 多基金多策略可视化" + " " * 20 + "║")
     print("╚" + "═" * 66 + "╝\n")
 
     funds = parse_fund_list(FUND_LIST_FILE)
@@ -724,7 +743,7 @@ def main():
 
     html_parts = []
     html_parts.append("""<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
-<title>广发约定净值转换 · 多基金三策略对比</title>
+<title>广发约定净值转换 · 多基金多策略对比</title>
 """ + plotly_inline + """
 <style>
 body{font-family:'Microsoft YaHei',Arial,sans-serif;margin:0;background:#f5f6f8;color:#222}
@@ -773,9 +792,9 @@ tr:nth-child(even){background:#fafbfc}
  width:90%;max-height:80vh;overflow:auto;position:relative}
 .modal-close{position:absolute;top:10px;right:14px;cursor:pointer;font-size:22px;color:#999}
 </style></head><body><div class="container">
-<h1>广发约定净值转换 · 多基金三策略可视化对比</h1>
+<h1>广发约定净值转换 · 多基金多策略可视化对比</h1>
 <div class="sub">A 动态滚动网格 / B 估值分位网格 / C 高点回撤止盈网格 · 初始资金100万 · 天天红B年化2%</div>
-<div class="card"><div class="fund-title">📊 多基金 × 三策略 汇总对比（点击表头可升/降序排序）
+<div class="card"><div class="fund-title">📊 多基金 × 多策略 汇总对比（点击表头可升/降序排序）
 <select class="range-selector" id="rangeSelector" onchange="switchRange(this.value)">""")
 
     # 下拉选项（默认近3年）
@@ -892,10 +911,10 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeParamMo
     print("=" * 70)
     all_df = summary_dfs['all']
     if len(all_df):
-        for sid in ('A', 'B', 'C'):
-            sub = all_df[all_df['策略'].str.startswith(sid, na=False)]
+        for sid, sname, _, _ in STRATEGIES:
+            sub = all_df[all_df['策略ID'] == sid]
             if len(sub):
-                print(f"  策略{sid}: 平均累计{sub['累计收益率(%)'].mean():.2f}%  "
+                print(f"  策略{sid} {sname}: 平均累计{sub['累计收益率(%)'].mean():.2f}%  "
                       f"平均回撤{sub['最大回撤(%)'].mean():.2f}%  "
                       f"最佳{sub.loc[sub['累计收益率(%)'].idxmax(),'基金名称']}"
                       f"({sub['累计收益率(%)'].max():.2f}%)")
