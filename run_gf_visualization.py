@@ -19,6 +19,7 @@ import os
 import sys
 import warnings
 import pandas as pd
+from datetime import date
 
 warnings.filterwarnings('ignore')
 
@@ -46,6 +47,27 @@ STRATEGIES = [
     ('C', '高点回撤止盈', run_c, '#2ca02c'),
 ]
 
+# ---------- 回测区间配置 ----------
+# 下拉选项：近1年 / 近2年 / 近3年 / 全部，默认近3年
+# 数据不足 N 年的基金自动用其全部可用数据（回测区间列如实显示实际跨度）
+RANGES = [
+    ('3y', '近3年', 3),
+    ('2y', '近2年', 2),
+    ('1y', '近1年', 1),
+    ('all', '全部', None),
+]
+DEFAULT_RANGE = '3y'
+
+
+def compute_start_date(years):
+    """计算 N 年前的日期字符串（YYYY-MM-DD），处理闰年2月29日"""
+    today = date.today()
+    try:
+        return today.replace(year=today.year - years).isoformat()
+    except ValueError:
+        # 2月29日 → 2月28日
+        return today.replace(year=today.year - years, day=28).isoformat()
+
 
 def parse_fund_list(path):
     """解析基金清单（每行：名称\\t代码）"""
@@ -71,11 +93,16 @@ def parse_fund_list(path):
     return funds
 
 
-def run_all_for_fund(code, name):
-    """对单只基金运行三策略，返回结果字典"""
-    nav_data = load_otc_fund_nav(code, name,
-                                 start_date='2019-01-01', end_date='2026-12-31',
-                                 verbose=False)
+def run_all_for_fund(code, name, start_date=None, nav_data=None):
+    """对单只基金运行三策略，返回结果字典
+
+    nav_data: 可选，预加载的净值数据（多区间复用，避免重复IO）
+    start_date: 回测起始日期（None=自动warmup；给定日期则从该日起回测）
+    """
+    if nav_data is None:
+        nav_data = load_otc_fund_nav(code, name,
+                                     start_date='2019-01-01', end_date='2026-12-31',
+                                     verbose=False)
     result = {'code': code, 'name': name, 'nav_data': nav_data, 'strategies': {}}
 
     if len(nav_data) < MIN_DATA_LEN:
@@ -92,6 +119,7 @@ def run_all_for_fund(code, name):
                 initial_cash=INITIAL_CASH,
                 nav_data=nav_data,
                 fund_code=code, fund_name=name,
+                start_date=start_date,
                 decimals=PARAM_DECIMALS,
                 verbose=False
             )
@@ -102,6 +130,19 @@ def run_all_for_fund(code, name):
             }
         except Exception as e:
             result['strategies'][sid] = {'error': str(e), 'color': color}
+
+    # 实际回测区间：从首个可用权益曲线取，反映 start_date 过滤后的真实跨度
+    # 数据不足N年的基金，策略会自然用其全部可用数据，bt_start 即为基金首日
+    for sid, sname, fn, color in STRATEGIES:
+        sres = result['strategies'].get(sid, {})
+        eq = sres.get('equity')
+        if eq is not None and len(eq) > 0:
+            result['bt_start'] = eq.index[0].strftime('%Y-%m-%d')
+            result['bt_end'] = eq.index[-1].strftime('%Y-%m-%d')
+            break
+    if 'bt_start' not in result:
+        result['bt_start'] = result['data_start']
+        result['bt_end'] = result['data_end']
 
     return result
 
@@ -281,7 +322,7 @@ def build_summary_table(all_results):
                 '超额收益(%)': round(s.get('超额收益(%)', 0) or 0, 2),
                 '买入持有(%)': round(s.get('买入持有收益率(%)', 0) or 0, 2),
                 '回测天数': m.get('回测天数', 0),
-                '回测区间': f"{res['data_start']}~{res['data_end']}",
+                '回测区间': f"{res.get('bt_start', res['data_start'])}~{res.get('bt_end', res['data_end'])}",
             })
     df = pd.DataFrame(rows)
     if df.empty:
@@ -333,8 +374,12 @@ def build_evaluation_section(df):
     if df.empty:
         return '<div class="card">无有效数据</div>'
 
+    # 下拉选项（与顶部汇总表共用 switchRange）
+    opts = ''.join(f'<option value="{rk}"{" selected" if rk == DEFAULT_RANGE else ""}>{rlabel}</option>'
+                   for rk, rlabel, _ in RANGES)
     html = ['<div class="card">']
-    html.append('<div class="fund-title">🏆 统计评价与基金策略筛选</div>')
+    html.append('<div class="fund-title">🏆 统计评价与基金策略筛选'
+                f'<select class="range-selector" onchange="switchRange(this.value)">{opts}</select></div>')
     html.append('<div class="legend-note">综合评分 = 年化收益25% + 回撤控制20% + 夏普15% + 卡玛15% + 超额收益15% + 胜率5% + 转换频率5%（百分位加权）</div>')
 
     # ---- 按基金：最优策略 ----
@@ -444,7 +489,7 @@ def build_evaluation_section(df):
     return '\n'.join(html)
 
 
-def build_sortable_table_html(df):
+def build_sortable_table_html(df, table_id='summary-table'):
     """生成可点击表头排序的汇总表"""
     if df.empty:
         return '<div class="card">无有效数据</div>'
@@ -455,7 +500,7 @@ def build_sortable_table_html(df):
             '综合评分', '评级', '回测区间']
     cols = [c for c in cols if c in df.columns]
 
-    html = ['<table id="summary-table" class="sortable">',
+    html = [f'<table id="{table_id}" class="sortable">',
             '<thead><tr>']
     for c in cols:
         html.append(f'<th data-sortable="true">{c}</th>')
@@ -492,33 +537,66 @@ def build_sortable_table_html(df):
     return '\n'.join(html)
 
 
-# 排序脚本（点击表头升/降序）
+def build_params_map(valid_results):
+    """构建参数查找映射：code_sid -> 参数HTML（供点击表格行弹出模态框）"""
+    params_map = {}
+    for res in valid_results:
+        for sid, sname, fn, color in STRATEGIES:
+            sres = res['strategies'].get(sid, {})
+            key = f"{res['code']}_{sid}"
+            eng = sres.get('engine')
+            buy_list = getattr(eng, 'gf_buy_list', None) or []
+            sell_list = getattr(eng, 'gf_sell_list', None) or []
+            box = [f'<h3 style="margin:0 0 12px;color:{color}">{res["name"]}（{res["code"]}）'
+                   f' · 策略{sid} {sname}</h3>']
+            box.append('<table style="font-size:13px;margin-bottom:12px">'
+                       '<thead><tr><th>方向</th><th>序号</th><th>约定净值</th><th>转换份额</th></tr></thead><tbody>')
+            for i, b in enumerate(buy_list, 1):
+                box.append(f'<tr><td style="color:#1f77b4">买入</td><td>{i}</td>'
+                           f'<td>{_fmt_nv(b["trigger_net_value"])}</td><td>{b["share"]}</td></tr>')
+            for i, s in enumerate(sell_list, 1):
+                box.append(f'<tr><td style="color:#d6372f">止盈</td><td>{i}</td>'
+                           f'<td>{_fmt_nv(s["trigger_net_value"])}</td><td>{s["share"]}</td></tr>')
+            box.append('</tbody></table>')
+            m = sres.get('metrics', {})
+            st = sres.get('stats', {})
+            box.append(f'<div style="font-size:12.5px;color:#555">'
+                       f'累计收益率 <b style="color:#d6372f">{m.get("累计收益率(%)",0):.2f}%</b> · '
+                       f'年化 {m.get("年化收益率(%)",0):.2f}% · '
+                       f'最大回撤 <b style="color:#2e8b57">{m.get("最大回撤(%)",0):.2f}%</b> · '
+                       f'夏普 {m.get("夏普比率",0):.3f} · '
+                       f'转换 {st.get("转换次数",0)} 次</div>')
+            params_map[key] = '\n'.join(box)
+    return params_map
+
+
+# 排序脚本（点击表头升/降序，适用于所有 .sortable 表）
 SORT_SCRIPT = """
 <script>
 (function(){
-  var table = document.getElementById('summary-table');
-  if(!table) return;
-  var headers = table.querySelectorAll('th[data-sortable]');
-  headers.forEach(function(th, idx){
-    th.style.cursor='pointer';
-    th.addEventListener('click', function(){
-      var tbody = table.querySelector('tbody');
-      var rows = Array.from(tbody.querySelectorAll('tr'));
-      var asc = th.dataset.sortDir !== 'asc';
-      headers.forEach(function(h){ h.dataset.sortDir=''; h.textContent = h.textContent.replace(' ▲','').replace(' ▼',''); });
-      th.dataset.sortDir = asc ? 'asc' : 'desc';
-      rows.sort(function(a,b){
-        var va = a.cells[idx].getAttribute('data-val');
-        var vb = b.cells[idx].getAttribute('data-val');
-        var na = parseFloat(va), nb = parseFloat(vb);
-        var aNum = !isNaN(na), bNum = !isNaN(nb);
-        var cmp;
-        if(aNum && bNum){ cmp = na - nb; }
-        else { cmp = String(va).localeCompare(String(vb),'zh'); }
-        return asc ? cmp : -cmp;
+  document.querySelectorAll('table.sortable').forEach(function(table){
+    var headers = table.querySelectorAll('th[data-sortable]');
+    headers.forEach(function(th, idx){
+      th.style.cursor='pointer';
+      th.addEventListener('click', function(){
+        var tbody = table.querySelector('tbody');
+        var rows = Array.from(tbody.querySelectorAll('tr'));
+        var asc = th.dataset.sortDir !== 'asc';
+        headers.forEach(function(h){ h.dataset.sortDir=''; h.textContent = h.textContent.replace(' ▲','').replace(' ▼',''); });
+        th.dataset.sortDir = asc ? 'asc' : 'desc';
+        rows.sort(function(a,b){
+          var va = a.cells[idx].getAttribute('data-val');
+          var vb = b.cells[idx].getAttribute('data-val');
+          var na = parseFloat(va), nb = parseFloat(vb);
+          var aNum = !isNaN(na), bNum = !isNaN(nb);
+          var cmp;
+          if(aNum && bNum){ cmp = na - nb; }
+          else { cmp = String(va).localeCompare(String(vb),'zh'); }
+          return asc ? cmp : -cmp;
+        });
+        rows.forEach(function(r){ tbody.appendChild(r); });
+        th.textContent = th.textContent.replace(' ▲','').replace(' ▼','') + (asc ? ' ▲' : ' ▼');
       });
-      rows.forEach(function(r){ tbody.appendChild(r); });
-      th.textContent = th.textContent.replace(' ▲','').replace(' ▼','') + (asc ? ' ▲' : ' ▼');
     });
   });
 })();
@@ -552,8 +630,8 @@ ROW_CLICK_SCRIPT = """
       }
     });
   }
-  var sumTbody = document.querySelector('#summary-table tbody');
-  if(sumTbody){ sumTbody.querySelectorAll('tr').forEach(bindRow); }
+  // 绑定所有区间表 + 评价表行
+  document.querySelectorAll('.range-table tbody tr').forEach(bindRow);
   document.querySelectorAll('.eval-row').forEach(bindRow);
 })();
 </script>
@@ -566,30 +644,61 @@ def main():
     print("╚" + "═" * 66 + "╝\n")
 
     funds = parse_fund_list(FUND_LIST_FILE)
+    range_label_map = {rk: rlabel for rk, rlabel, _ in RANGES}
     print(f"读取基金清单: {len(funds)} 只")
+    print(f"回测区间: {', '.join(r[1] for r in RANGES)}（默认{range_label_map[DEFAULT_RANGE]}）\n")
 
-    all_results = []
+    # 多区间结果: {range_key: [results]} 与 {code: {range_key: result}}
+    all_results_by_range = {rk: [] for rk, _, _ in RANGES}
+    fund_results_map = {}  # code -> {range_key: result}
+
     for i, (code, name) in enumerate(funds, 1):
-        print(f"  [{i}/{len(funds)}] {code} {name[:20]} ...", end=' ', flush=True)
+        print(f"  [{i}/{len(funds)}] {code} {name[:20]}", end=' ', flush=True)
         try:
-            res = run_all_for_fund(code, name)
-            if 'error' in res:
-                print(res['error'])
-            else:
-                ok = [sid for sid in ('A', 'B', 'C') if 'metrics' in res['strategies'].get(sid, {})]
-                print(f"{res['data_len']}条 策略{','.join(ok)}")
-            all_results.append(res)
+            nav_data = load_otc_fund_nav(code, name,
+                                         start_date='2019-01-01', end_date='2026-12-31',
+                                         verbose=False)
+            fund_results_map[code] = {}
+            if len(nav_data) < MIN_DATA_LEN:
+                print(f"数据不足({len(nav_data)}条)")
+                for rk, _, _ in RANGES:
+                    res = {'code': code, 'name': name, 'error': f'数据不足({len(nav_data)}条)',
+                           'nav_data': nav_data, 'strategies': {}}
+                    all_results_by_range[rk].append(res)
+                    fund_results_map[code][rk] = res
+                continue
+
+            parts = []
+            for rk, rlabel, years in RANGES:
+                sd = compute_start_date(years) if years else None
+                res = run_all_for_fund(code, name, start_date=sd, nav_data=nav_data)
+                all_results_by_range[rk].append(res)
+                fund_results_map[code][rk] = res
+                if 'error' in res:
+                    parts.append(f"{rlabel}:err")
+                else:
+                    bt = res.get('bt_start', '?')
+                    parts.append(f"{rlabel}:{bt[2:]}")  # YY-MM-DD
+            print(' '.join(parts))
         except Exception as e:
             print(f"异常: {e}")
-            all_results.append({'code': code, 'name': name, 'error': str(e),
-                                'nav_data': pd.DataFrame(), 'strategies': {}})
+            if code not in fund_results_map:
+                fund_results_map[code] = {}
+            for rk, _, _ in RANGES:
+                res = {'code': code, 'name': name, 'error': str(e),
+                       'nav_data': pd.DataFrame(), 'strategies': {}}
+                all_results_by_range[rk].append(res)
+                fund_results_map[code][rk] = res
 
-    # ---- 汇总表 ----
-    summary_df = build_summary_table(all_results)
+    # ---- 各区间汇总表 ----
+    summary_dfs = {rk: build_summary_table(results)
+                   for rk, results in all_results_by_range.items()}
+
+    # CSV：导出默认区间数据
     csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                             'gf_multi_fund_comparison.csv')
-    summary_df.to_csv(csv_path, index=False, encoding='utf-8-sig')
-    print(f"\n💾 汇总表: {csv_path}")
+    summary_dfs[DEFAULT_RANGE].to_csv(csv_path, index=False, encoding='utf-8-sig')
+    print(f"\n💾 汇总表({range_label_map[DEFAULT_RANGE]}): {csv_path}")
 
     # ---- HTML 报告 ----
     print("生成 HTML 可视化报告...")
@@ -615,6 +724,8 @@ h1{font-size:24px;margin:0 0 6px}
 .fund-title{font-size:17px;font-weight:600;margin:0 0 4px;border-left:4px solid #1f77b4;padding-left:10px}
 .tag{display:inline-block;background:#eef3fb;color:#1f5fa8;border-radius:4px;
  padding:2px 8px;font-size:12px;margin-left:8px}
+.range-selector{float:right;font-size:13px;padding:3px 8px;border:1px solid #ccc;
+ border-radius:4px;cursor:pointer;margin-top:1px}
 table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{border:1px solid #e3e6ea;padding:6px 8px;text-align:center}
 th{background:#f0f3f7;font-weight:600;user-select:none}
@@ -638,8 +749,8 @@ tr:nth-child(even){background:#fafbfc}
 .param-nv{color:#1f77b4;font-weight:600}
 .param-row.sell .param-nv{color:#d6372f}
 .param-share{color:#888;margin-left:5px}
-#summary-table tbody tr{cursor:pointer}
-#summary-table tbody tr:hover{background:#fff7e6}
+.range-table tbody tr{cursor:pointer}
+.range-table tbody tr:hover{background:#fff7e6}
 .eval-row{cursor:pointer}
 .eval-row:hover{background:#fff7e6}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);
@@ -651,78 +762,101 @@ tr:nth-child(even){background:#fafbfc}
 </style></head><body><div class="container">
 <h1>广发约定净值转换 · 多基金三策略可视化对比</h1>
 <div class="sub">A 动态滚动网格 / B 估值分位网格 / C 高点回撤止盈网格 · 初始资金100万 · 天天红B年化2%</div>
-<div class="card"><div class="fund-title">📊 多基金 × 三策略 汇总对比（点击表头可升/降序排序）</div>""")
+<div class="card"><div class="fund-title">📊 多基金 × 三策略 汇总对比（点击表头可升/降序排序）
+<select class="range-selector" id="rangeSelector" onchange="switchRange(this.value)">""")
 
-    # 汇总表（可排序）
-    html_parts.append(build_sortable_table_html(summary_df))
-    html_parts.append('<div class="legend-note">▲ 买入（彩色实角） / ▼ 止盈（彩色半透明） · 三种策略颜色：A蓝 B橙 C绿</div>')
+    # 下拉选项（默认近3年）
+    for rk, rlabel, _ in RANGES:
+        sel = ' selected' if rk == DEFAULT_RANGE else ''
+        html_parts.append(f'<option value="{rk}"{sel}>{rlabel}</option>')
+    html_parts.append('</select></div>')
+
+    # 各区间汇总表（默认区间可见，其余隐藏）
+    for rk, rlabel, _ in RANGES:
+        style = '' if rk == DEFAULT_RANGE else ' style="display:none"'
+        html_parts.append(f'<div id="table-{rk}" class="range-table"{style}>')
+        html_parts.append(build_sortable_table_html(summary_dfs[rk], table_id=f'tbl-{rk}'))
+        html_parts.append('</div>')
+
+    html_parts.append('<div class="legend-note">▲ 买入（彩色实角） / ▼ 止盈（彩色半透明） · 三种策略颜色：A蓝 B橙 C绿 · 切换区间仅刷新表格与参数，曲线为全部区间</div>')
     html_parts.append('</div>')
 
-    # ---- 统计评价区块 ----
-    html_parts.append(build_evaluation_section(summary_df))
+    # ---- 统计评价区块（4区间，下拉切换，默认近3年）----
+    for rk, rlabel, _ in RANGES:
+        style = '' if rk == DEFAULT_RANGE else ' style="display:none"'
+        html_parts.append(f'<div class="range-eval" data-range="{rk}"{style}>')
+        html_parts.append(build_evaluation_section(summary_dfs[rk]))
+        html_parts.append('</div>')
 
-    # 每只基金图表
-    valid = [r for r in all_results if 'error' not in r]
-    html_parts.append(f'<div class="card"><div class="fund-title">📈 各基金净值曲线与买卖点（{len(valid)}只有数据）</div>')
+    # ---- 各基金图表（曲线使用全部区间）----
+    valid_all = [r for r in all_results_by_range['all'] if 'error' not in r]
+    html_parts.append(f'<div class="card"><div class="fund-title">📈 各基金净值曲线与买卖点（{len(valid_all)}只有数据 · 曲线为全部区间）</div>')
 
-    # 构建参数查找映射：code_sid -> 参数HTML，供点击表格行时展示
-    params_map = {}
-    for res in valid:
-        for sid, sname, fn, color in STRATEGIES:
-            sres = res['strategies'].get(sid, {})
-            key = f"{res['code']}_{sid}"
-            # 生成模态框用的详细参数（含基金名+策略名）
-            eng = sres.get('engine')
-            buy_list = getattr(eng, 'gf_buy_list', None) or []
-            sell_list = getattr(eng, 'gf_sell_list', None) or []
-            box = [f'<h3 style="margin:0 0 12px;color:{color}">{res["name"]}（{res["code"]}）'
-                   f' · 策略{sid} {sname}</h3>']
-            box.append('<table style="font-size:13px;margin-bottom:12px">'
-                       '<thead><tr><th>方向</th><th>序号</th><th>约定净值</th><th>转换份额</th></tr></thead><tbody>')
-            for i, b in enumerate(buy_list, 1):
-                box.append(f'<tr><td style="color:#1f77b4">买入</td><td>{i}</td>'
-                           f'<td>{_fmt_nv(b["trigger_net_value"])}</td><td>{b["share"]}</td></tr>')
-            for i, s in enumerate(sell_list, 1):
-                box.append(f'<tr><td style="color:#d6372f">止盈</td><td>{i}</td>'
-                           f'<td>{_fmt_nv(s["trigger_net_value"])}</td><td>{s["share"]}</td></tr>')
-            box.append('</tbody></table>')
-            # 指标摘要
-            m = sres.get('metrics', {})
-            st = sres.get('stats', {})
-            box.append(f'<div style="font-size:12.5px;color:#555">'
-                       f'累计收益率 <b style="color:#d6372f">{m.get("累计收益率(%)",0):.2f}%</b> · '
-                       f'年化 {m.get("年化收益率(%)",0):.2f}% · '
-                       f'最大回撤 <b style="color:#2e8b57">{m.get("最大回撤(%)",0):.2f}%</b> · '
-                       f'夏普 {m.get("夏普比率",0):.3f} · '
-                       f'转换 {st.get("转换次数",0)} 次</div>')
-            params_map[key] = '\n'.join(box)
+    # 各区间参数映射（点击表格行弹出模态框，根据当前区间显示对应参数）
+    params_maps = {}
+    for rk, _, _ in RANGES:
+        valid_r = [r for r in all_results_by_range[rk] if 'error' not in r]
+        params_maps[rk] = build_params_map(valid_r)
 
     import json
-    params_json = json.dumps(params_map, ensure_ascii=False)
+    params_json = json.dumps(params_maps, ensure_ascii=False)
 
-    for res in valid:
+    for res in valid_all:
+        code = res['code']
         fig = build_fund_figure(res)
-        div_id = f"fund_{res['code']}"
+        div_id = f"fund_{code}"
         html_parts.append(f'<div class="card" id="{div_id}">')
         html_parts.append(f'<div class="fund-title">{res["name"]}'
                           f'<span class="tag">{res["code"]}</span>'
                           f'<span class="tag">{res["data_len"]}条 {res["data_start"]}~{res["data_end"]}</span></div>')
-        # 三策略最新买入/止盈参数
-        html_parts.append(build_fund_params_block(res))
+        # 各区间参数块（默认区间可见，切换区间时前端显隐）
+        for rk, rlabel, _ in RANGES:
+            res_r = fund_results_map.get(code, {}).get(rk, res)
+            style = '' if rk == DEFAULT_RANGE else ' style="display:none"'
+            html_parts.append(f'<div class="range-params" data-range="{rk}"{style}>')
+            html_parts.append(f'<div class="legend-note" style="margin:0 0 2px">参数区间：{rlabel}'
+                              f'（{res_r.get("bt_start","?")}~{res_r.get("bt_end","?")}）</div>')
+            html_parts.append(build_fund_params_block(res_r))
+            html_parts.append('</div>')
         html_parts.append(pio.to_html(fig, include_plotlyjs=False, full_html=False,
                                       config={'displaylogo': False}))
         html_parts.append('</div>')
     html_parts.append('</div>')
 
-    # ---- 模态框 ----
+    # ---- 模态框 + 区间切换脚本 ----
+    range_opts_js = ','.join(f"'{rk}':'{rlabel}'" for rk, rlabel, _ in RANGES)
     html_parts.append("""<div class="modal-overlay" id="paramModal">
 <div class="modal-box"><span class="modal-close" onclick="closeParamModal()">×</span>
 <div id="paramModalContent">点击表格行查看参数</div></div></div>
-<script>window.PARAMS_MAP = """ + params_json + """;
-function openParamModal(key){var c=document.getElementById('paramModalContent');
- var h=window.PARAMS_MAP[key]; if(h){c.innerHTML=h;} else {c.innerHTML='暂无参数';}
- document.getElementById('paramModal').classList.add('active');}
+<script>
+window.PARAMS_MAP = """ + params_json + """;
+window.CURRENT_RANGE = '""" + DEFAULT_RANGE + """';
+var RANGE_LABELS = {""" + range_opts_js + """};
+function openParamModal(key){
+  var map = window.PARAMS_MAP[window.CURRENT_RANGE] || {};
+  var h = map[key];
+  var c = document.getElementById('paramModalContent');
+  if(h){ c.innerHTML = '<div style="font-size:12px;color:#888;margin-bottom:8px">参数区间：'
+    + (RANGE_LABELS[window.CURRENT_RANGE]||window.CURRENT_RANGE) + '</div>' + h; }
+  else { c.innerHTML = '暂无参数'; }
+  document.getElementById('paramModal').classList.add('active');
+}
 function closeParamModal(){document.getElementById('paramModal').classList.remove('active');}
+function switchRange(rk){
+  window.CURRENT_RANGE = rk;
+  // 切换汇总表显隐
+  document.querySelectorAll('.range-table').forEach(function(t){ t.style.display='none'; });
+  var tt = document.getElementById('table-' + rk);
+  if(tt) tt.style.display = '';
+  // 切换统计评价区块显隐
+  document.querySelectorAll('.range-eval').forEach(function(e){ e.style.display='none'; });
+  document.querySelectorAll('.range-eval[data-range="'+rk+'"]').forEach(function(e){ e.style.display=''; });
+  // 切换各基金参数块显隐
+  document.querySelectorAll('.range-params').forEach(function(p){ p.style.display='none'; });
+  document.querySelectorAll('.range-params[data-range="'+rk+'"]').forEach(function(p){ p.style.display=''; });
+  // 同步所有下拉
+  document.querySelectorAll('.range-selector').forEach(function(s){ s.value = rk; });
+}
 document.getElementById('paramModal').addEventListener('click',function(e){
  if(e.target.id==='paramModal') closeParamModal();});
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeParamModal();});
@@ -739,14 +873,14 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeParamMo
         f.write('\n'.join(html_parts))
     print(f"💾 HTML报告: {html_path}")
 
-    # ---- 终端摘要 ----
+    # ---- 终端摘要（基于全部区间）----
     print("\n" + "=" * 70)
-    print("  完成摘要")
+    print("  完成摘要（全部区间）")
     print("=" * 70)
-    valid_df = summary_df[summary_df.get('备注', pd.Series(dtype=str)).isna() if '备注' in summary_df else summary_df['累计收益率(%)'].notna()]
-    if len(valid_df):
+    all_df = summary_dfs['all']
+    if len(all_df):
         for sid in ('A', 'B', 'C'):
-            sub = valid_df[valid_df['策略'].str.startswith(sid, na=False)]
+            sub = all_df[all_df['策略'].str.startswith(sid, na=False)]
             if len(sub):
                 print(f"  策略{sid}: 平均累计{sub['累计收益率(%)'].mean():.2f}%  "
                       f"平均回撤{sub['最大回撤(%)'].mean():.2f}%  "
