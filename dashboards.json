@@ -1,0 +1,26 @@
+[
+  {
+    "id": "s7",
+    "title": "策略7 · 双底自适应阶梯",
+    "href": "dual_bottom_dashboard.html",
+    "desc": "筛选与条件单"
+  },
+  {
+    "id": "s8",
+    "title": "策略8 · 全市场双底阶梯",
+    "href": "dual_bottom_ladder_dashboard.html",
+    "desc": "榜单+双底+阶梯"
+  },
+  {
+    "id": "gf",
+    "title": "广发约定净值转换",
+    "href": "gf_strategy_dashboard.html",
+    "desc": "多基金多策略对比"
+  },
+  {
+    "id": "etf",
+    "title": "ETF 量化回测看板",
+    "href": "web_dashboard/index.html",
+    "desc": "策略1–6 静态可视化"
+  }
+]
