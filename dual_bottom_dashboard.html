@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>双底确认+自适应阶梯抄底 · 筛选与条件单仪表盘</title>
 <style>
   body { font-family: -apple-system, 'Microsoft YaHei', sans-serif; margin: 0;
@@ -35,6 +36,20 @@
            border-radius: 8px; padding: 12px 16px; margin-top: 12px; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 1000px) { .grid2 { grid-template-columns: 1fr; } }
+@media (max-width:768px){
+body{margin:0!important;padding:8px!important}
+.container{padding:10px 8px!important}
+.header{padding:16px 14px!important}
+.header h1,h1{font-size:18px!important}
+.card,.section{padding:12px 10px!important}
+.param-box{min-width:0!important}
+.range-selector{float:none!important;display:block;margin:8px 0 0!important;width:100%;box-sizing:border-box}
+.cards{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))!important;gap:10px!important}
+.card .num{font-size:22px!important}
+table{font-size:11px!important}
+.card,.section,.container{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.js-plotly-plot,.plotly-graph-div{max-width:100%!important}
+}
 </style>
 </head><body>
 <div class="header">
@@ -111,5 +126,51 @@ function sortTable(tableId, col) {
   rows.forEach(function(r) { tbody.appendChild(r); });
   table.setAttribute('data-sort-' + col, dir);
 }
+</script>
+<script>
+(function(){
+  function isMobile(){return window.matchMedia('(max-width:768px)').matches;}
+  function adaptPlot(gd){
+    if(!window.Plotly||!gd||!gd.layout)return;
+    if(!gd._deskLayout){
+      var m=gd.layout.margin||{};
+      gd._deskLayout={
+        height:gd.layout.height||400,
+        l:m.l,r:m.r,t:m.t,b:m.b
+      };
+    }
+    var d=gd._deskLayout;
+    if(isMobile()){
+      var left=d.l||80;
+      var barHeavy=left>100;
+      Plotly.relayout(gd,{
+        'margin.l':barHeavy?Math.min(left,100):36,
+        'margin.r':12,
+        'margin.t':Math.min(d.t||60,50),
+        'margin.b':Math.min(d.b||40,36),
+        height:Math.round(d.height*0.82)
+      });
+      gd._mobAdapted=true;
+    }else if(gd._mobAdapted){
+      var patch={height:d.height};
+      if(d.l!=null)patch['margin.l']=d.l;
+      if(d.r!=null)patch['margin.r']=d.r;
+      if(d.t!=null)patch['margin.t']=d.t;
+      if(d.b!=null)patch['margin.b']=d.b;
+      Plotly.relayout(gd,patch);
+      gd._mobAdapted=false;
+    }
+  }
+  function run(){
+    document.querySelectorAll('.js-plotly-plot').forEach(adaptPlot);
+  }
+  var timer;
+  function schedule(){clearTimeout(timer);timer=setTimeout(run,200);}
+  if(document.readyState==='complete')schedule();
+  else window.addEventListener('load',schedule);
+  window.addEventListener('resize',schedule);
+  setTimeout(schedule,800);
+  setTimeout(schedule,1800);
+})();
 </script>
 </body></html>
