@@ -149,6 +149,7 @@ def fig_scatter(screen_df):
         xaxis_title='3年净值分位 (%)', yaxis_title='距3年高点回撤 (%)',
         height=460, template='plotly_white', hovermode='closest',
         legend=dict(orientation='h', y=-0.18),
+        dragmode='pan',
     )
     return fig
 
@@ -172,6 +173,7 @@ def fig_percentile_bar(screen_df):
         title='基金池3年净值分位排名（越靠左越接近历史底部）',
         xaxis_title='3年净值分位 (%)', height=480, template='plotly_white',
         margin=dict(l=180),
+        dragmode='pan',
     )
     return fig
 
@@ -242,7 +244,7 @@ def fig_ladder_chart(code, name, nav_series, plan, bt_result):
     fig.update_layout(title=title, height=360, template='plotly_white',
                       margin=dict(l=60, r=60, t=40, b=30),
                       showlegend=True, legend=dict(orientation='h', y=-0.12),
-                      hovermode='x unified')
+                      hovermode='x unified', dragmode='pan')
     return fig
 
 
@@ -263,7 +265,7 @@ def fig_equity(portfolio, benchmark):
     fig.update_layout(title='近3年回测：双底确认+自适应阶梯组合 vs 沪深300',
                       xaxis_title='', yaxis_title='归一化净值',
                       height=420, template='plotly_white', hovermode='x unified',
-                      legend=dict(orientation='h', y=-0.15))
+                      legend=dict(orientation='h', y=-0.15), dragmode='pan')
     return fig
 
 
@@ -356,11 +358,13 @@ def build_dashboard(screen_df, plans, orders_df, bt_results, portfolio,
         bt_rows, 'btTable')
 
     # ---- 图表 ----
+    plotly_cfg = {'displaylogo': False, 'scrollZoom': True, 'doubleClick': 'reset'}
     divs = []
     plotly_js = True
     for fig in [fig_scatter(screen_df), fig_percentile_bar(screen_df)]:
         divs.append(pio.to_html(fig, full_html=False,
-                                include_plotlyjs='cdn' if plotly_js else False))
+                                include_plotlyjs='cdn' if plotly_js else False,
+                                config=plotly_cfg))
         plotly_js = False
 
     # 条件单图（入选+观察）
@@ -375,11 +379,13 @@ def build_dashboard(screen_df, plans, orders_df, bt_results, portfolio,
         nav_s = nav['close'] if hasattr(nav, 'columns') else nav
         fig = fig_ladder_chart(code, r['name'], nav_s, plan_map.get(code),
                                bt_map.get(code))
-        ladder_divs.append(pio.to_html(fig, full_html=False, include_plotlyjs=False))
+        ladder_divs.append(pio.to_html(fig, full_html=False, include_plotlyjs=False,
+                                       config=plotly_cfg))
 
     # 回测曲线
     divs.append(pio.to_html(fig_equity(portfolio, benchmark),
-                            full_html=False, include_plotlyjs=False))
+                            full_html=False, include_plotlyjs=False,
+                            config=plotly_cfg))
 
     port_ret = (portfolio['total_value'].iloc[-1] / portfolio['total_value'].iloc[0] - 1) \
         if portfolio is not None and len(portfolio) else 0
@@ -510,6 +516,60 @@ function sortTable(tableId, col) {{
   table.setAttribute('data-sort-' + col, dir);
 }}
 </script>
+<script>
+(function(){{
+  var ZOOM_FACTOR = 1.08;
+  function toMs(v){{
+    if(v == null) return null;
+    if(typeof v === 'number') return v;
+    var t = Date.parse(v);
+    return isNaN(t) ? null : t;
+  }}
+  function axisRange(gd, axName){{
+    var ax = gd._fullLayout && gd._fullLayout[axName];
+    if(!ax || !ax.range) return null;
+    var r0 = toMs(ax.range[0]), r1 = toMs(ax.range[1]);
+    if(r0 == null || r1 == null) return null;
+    return [r0, r1];
+  }}
+  function softWheelZoom(gd, e){{
+    if(!window.Plotly || !gd || !gd._fullLayout) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    var factor = e.deltaY < 0 ? 1 / ZOOM_FACTOR : ZOOM_FACTOR;
+    var xNames = Object.keys(gd._fullLayout).filter(function(k){{
+      return /^xaxis\d*$/.test(k) && gd._fullLayout[k] && gd._fullLayout[k].range;
+    }});
+    if(!xNames.length) return;
+    var update = {{}};
+    xNames.forEach(function(name){{
+      var r = axisRange(gd, name);
+      if(!r) return;
+      var mid = (r[0] + r[1]) / 2;
+      var half = (r[1] - r[0]) / 2 * factor;
+      update[name + '.range'] = [new Date(mid - half), new Date(mid + half)];
+    }});
+    if(Object.keys(update).length) Plotly.relayout(gd, update);
+  }}
+  function bindPlot(gd){{
+    if(!gd || gd._softZoomBound) return;
+    gd._softZoomBound = true;
+    if(window.Plotly) Plotly.relayout(gd, {{dragmode: 'pan'}});
+    gd.addEventListener('wheel', function(e){{ softWheelZoom(gd, e); }}, {{passive: false, capture: true}});
+  }}
+  function bindAll(){{
+    document.querySelectorAll('.js-plotly-plot').forEach(bindPlot);
+  }}
+  if(document.readyState === 'loading'){{
+    document.addEventListener('DOMContentLoaded', bindAll);
+  }} else {{
+    bindAll();
+  }}
+  setTimeout(bindAll, 500);
+  setTimeout(bindAll, 1500);
+}})();
+</script>
+
 <script>
 (function(){{
   function isMobile(){{return Math.min(screen.width, screen.height) <= 768;}}

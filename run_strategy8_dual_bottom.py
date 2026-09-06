@@ -125,7 +125,7 @@ def build_dashboard(board, screen_df, orders, equity, bt_summary, out_html):
         fig2.add_vline(x=15, line_dash='dot', line_color='#1a9850')
         fig2.update_layout(title='双底定位：3年分位 × 距高点回撤',
                            xaxis_title='3年分位(%)', yaxis_title='回撤(%)',
-                           height=460, template='plotly_white')
+                           height=460, template='plotly_white', dragmode='pan')
         figs.append(fig2)
 
     if len(screen_df):
@@ -137,14 +137,15 @@ def build_dashboard(board, screen_df, orders, equity, bt_summary, out_html):
             orientation='h', marker_color=colors, text=top['rating'], textposition='auto',
         ))
         fig3.update_layout(title='深度筛评分 Top30', height=560, template='plotly_white',
-                           margin=dict(l=160))
+                           margin=dict(l=160), dragmode='pan')
         figs.append(fig3)
 
     if equity is not None and len(equity) and 'nav' in equity.columns:
         fig4 = go.Figure(go.Scatter(
             x=equity.index, y=equity['nav'], name='等权组合',
             line=dict(color='#2c6fbb', width=2)))
-        fig4.update_layout(title='入选标的等权回测净值', height=400, template='plotly_white')
+        fig4.update_layout(title='入选标的等权回测净值', height=400, template='plotly_white',
+                           dragmode='pan')
         figs.append(fig4)
 
     n_conf = int((screen_df['bottom_status'] == 'confirmed').sum()) if len(screen_df) else 0
@@ -164,9 +165,11 @@ def build_dashboard(board, screen_df, orders, equity, bt_summary, out_html):
         f'<div class="card"><b>榜单</b> {len(board)} | <b>深度筛</b> {len(screen_df)} | '
         f'<b>双底确认</b> {n_conf} | <b>条件单</b> {0 if orders is None else len(orders)}</div>',
     ]
+    plotly_cfg = {'displaylogo': False, 'scrollZoom': True, 'doubleClick': 'reset'}
     for i, fig in enumerate(figs):
         parts.append('<div class="card">' + fig.to_html(
-            full_html=False, include_plotlyjs='cdn' if i == 0 else False) + '</div>')
+            full_html=False, include_plotlyjs='cdn' if i == 0 else False,
+            config=plotly_cfg) + '</div>')
     if orders is not None and len(orders):
         parts.append('<div class="card"><h2>条件单预览</h2>')
         parts.append(orders.head(100).to_html(index=False, border=0))
@@ -176,6 +179,59 @@ def build_dashboard(board, screen_df, orders, equity, bt_summary, out_html):
         parts.append(bt_summary.to_html(index=False, border=0))
         parts.append('</div>')
     parts.append("""<script>
+(function(){
+  var ZOOM_FACTOR = 1.08;
+  function toMs(v){
+    if(v == null) return null;
+    if(typeof v === 'number') return v;
+    var t = Date.parse(v);
+    return isNaN(t) ? null : t;
+  }
+  function axisRange(gd, axName){
+    var ax = gd._fullLayout && gd._fullLayout[axName];
+    if(!ax || !ax.range) return null;
+    var r0 = toMs(ax.range[0]), r1 = toMs(ax.range[1]);
+    if(r0 == null || r1 == null) return null;
+    return [r0, r1];
+  }
+  function softWheelZoom(gd, e){
+    if(!window.Plotly || !gd || !gd._fullLayout) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    var factor = e.deltaY < 0 ? 1 / ZOOM_FACTOR : ZOOM_FACTOR;
+    var xNames = Object.keys(gd._fullLayout).filter(function(k){
+      return /^xaxis\\d*$/.test(k) && gd._fullLayout[k] && gd._fullLayout[k].range;
+    });
+    if(!xNames.length) return;
+    var update = {};
+    xNames.forEach(function(name){
+      var r = axisRange(gd, name);
+      if(!r) return;
+      var mid = (r[0] + r[1]) / 2;
+      var half = (r[1] - r[0]) / 2 * factor;
+      update[name + '.range'] = [new Date(mid - half), new Date(mid + half)];
+    });
+    if(Object.keys(update).length) Plotly.relayout(gd, update);
+  }
+  function bindPlot(gd){
+    if(!gd || gd._softZoomBound) return;
+    gd._softZoomBound = true;
+    if(window.Plotly) Plotly.relayout(gd, {dragmode: 'pan'});
+    gd.addEventListener('wheel', function(e){ softWheelZoom(gd, e); }, {passive: false, capture: true});
+  }
+  function bindAll(){
+    document.querySelectorAll('.js-plotly-plot').forEach(bindPlot);
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', bindAll);
+  } else {
+    bindAll();
+  }
+  setTimeout(bindAll, 500);
+  setTimeout(bindAll, 1500);
+})();
+</script>
+<script>
 (function(){
   function isMobile(){return Math.min(screen.width, screen.height) <= 768;}
   function adaptPlot(gd){

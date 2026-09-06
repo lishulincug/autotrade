@@ -799,11 +799,11 @@ ROW_CLICK_SCRIPT = """
 </script>
 """
 
-# 温和滚轮缩放：默认 pan，滚轮每格约 ±10%（替代 Plotly 默认偏大步长）
+# 温和滚轮缩放：默认 pan，滚轮每格约 ±8%（替代 Plotly 默认偏大步长）
 ZOOM_SCRIPT = """
 <script>
 (function(){
-  var ZOOM_FACTOR = 1.10;
+  var ZOOM_FACTOR = 1.08;
   function toMs(v){
     if(v == null) return null;
     if(typeof v === 'number') return v;
