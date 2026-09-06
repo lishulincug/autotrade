@@ -1,5 +1,4 @@
 <!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>广发约定净值转换 · 多基金多策略对比</title>
 <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.6.0.min.js"></script>
 <style>
@@ -8541,146 +8540,26 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeParamMo
 </div>
 <script>
 (function(){
-  document.querySelectorAll('table.sortable').forEach(function(table){
-    var headers = table.querySelectorAll('th[data-sortable]');
-    headers.forEach(function(th, idx){
-      th.style.cursor='pointer';
-      th.addEventListener('click', function(){
-        var tbody = table.querySelector('tbody');
-        var rows = Array.from(tbody.querySelectorAll('tr'));
-        var asc = th.dataset.sortDir !== 'asc';
-        headers.forEach(function(h){ h.dataset.sortDir=''; h.textContent = h.textContent.replace(' ▲','').replace(' ▼',''); });
-        th.dataset.sortDir = asc ? 'asc' : 'desc';
-        rows.sort(function(a,b){
-          var va = a.cells[idx].getAttribute('data-val');
-          var vb = b.cells[idx].getAttribute('data-val');
-          var na = parseFloat(va), nb = parseFloat(vb);
-          var aNum = !isNaN(na), bNum = !isNaN(nb);
-          var cmp;
-          if(aNum && bNum){ cmp = na - nb; }
-          else { cmp = String(va).localeCompare(String(vb),'zh'); }
-          return asc ? cmp : -cmp;
-        });
-        rows.forEach(function(r){ tbody.appendChild(r); });
-        th.textContent = th.textContent.replace(' ▲','').replace(' ▼','') + (asc ? ' ▲' : ' ▼');
-      });
-    });
-  });
-})();
-</script>
-
-<script>
-(function(){
-  var CLICK_DELAY = 280; // 单击延迟，若此时间内有双击则取消单击
-  function bindRow(tr){
-    var clickTimer = null;
-    tr.addEventListener('click', function(e){
-      if(!tr.dataset || !tr.dataset.fund) return;
-      if(clickTimer) return;
-      clickTimer = setTimeout(function(){
-        clickTimer = null;
-        var key = tr.dataset.fund + '_' + tr.dataset.sid;
-        if(window.openParamModal){ window.openParamModal(key); }
-      }, CLICK_DELAY);
-    });
-    tr.addEventListener('dblclick', function(e){
-      if(!tr.dataset || !tr.dataset.fund) return;
-      if(clickTimer){ clearTimeout(clickTimer); clickTimer = null; }
-      var target = document.getElementById('fund_' + tr.dataset.fund);
-      if(target){
-        target.scrollIntoView({behavior:'smooth', block:'start'});
-        target.style.transition = 'background .6s';
-        target.style.background = '#fff7e6';
-        setTimeout(function(){ target.style.background = ''; }, 1500);
-      }
-    });
-  }
-  // 绑定所有区间表 + 评价表行
-  document.querySelectorAll('.range-table tbody tr').forEach(bindRow);
-  document.querySelectorAll('.eval-row').forEach(bindRow);
-})();
-</script>
-
-<script>
-(function(){
-  var ZOOM_FACTOR = 1.10;
-  function toMs(v){
-    if(v == null) return null;
-    if(typeof v === 'number') return v;
-    var t = Date.parse(v);
-    return isNaN(t) ? null : t;
-  }
-  function axisRange(gd, axName){
-    var ax = gd._fullLayout && gd._fullLayout[axName];
-    if(!ax || !ax.range) return null;
-    var r0 = toMs(ax.range[0]), r1 = toMs(ax.range[1]);
-    if(r0 == null || r1 == null) return null;
-    return [r0, r1];
-  }
-  function softWheelZoom(gd, e){
-    if(!window.Plotly || !gd || !gd._fullLayout) return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    var factor = e.deltaY < 0 ? 1 / ZOOM_FACTOR : ZOOM_FACTOR;
-    var xNames = Object.keys(gd._fullLayout).filter(function(k){
-      return /^xaxis\d*$/.test(k) && gd._fullLayout[k] && gd._fullLayout[k].range;
-    });
-    if(!xNames.length) return;
-    var update = {};
-    xNames.forEach(function(name){
-      var r = axisRange(gd, name);
-      if(!r) return;
-      var mid = (r[0] + r[1]) / 2;
-      var half = (r[1] - r[0]) / 2 * factor;
-      update[name + '.range'] = [new Date(mid - half), new Date(mid + half)];
-    });
-    if(Object.keys(update).length) Plotly.relayout(gd, update);
-  }
-  function bindPlot(gd){
-    if(!gd || gd._softZoomBound) return;
-    gd._softZoomBound = true;
-    if(window.Plotly) Plotly.relayout(gd, {dragmode: 'pan'});
-    gd.addEventListener('wheel', function(e){ softWheelZoom(gd, e); }, {passive: false, capture: true});
-  }
-  function bindAll(){
-    document.querySelectorAll('.js-plotly-plot').forEach(bindPlot);
-  }
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', bindAll);
-  } else {
-    bindAll();
-  }
-  setTimeout(bindAll, 500);
-  setTimeout(bindAll, 1500);
-})();
-</script>
-
-<script>
-(function(){
-  function isMobile(){return window.matchMedia('(max-width:768px)').matches;}
+  function isMobile(){return Math.min(screen.width, screen.height) <= 768;}
   function adaptPlot(gd){
     if(!window.Plotly||!gd||!gd.layout)return;
     if(!gd._deskLayout){
       var m=gd.layout.margin||{};
-      gd._deskLayout={
-        height:gd.layout.height||400,
-        l:m.l,r:m.r,t:m.t,b:m.b
-      };
+      gd._deskLayout={l:m.l,r:m.r,t:m.t,b:m.b};
     }
     var d=gd._deskLayout;
     if(isMobile()){
       var left=d.l||80;
       var barHeavy=left>100;
       Plotly.relayout(gd,{
-        'margin.l':barHeavy?Math.min(left,100):36,
-        'margin.r':12,
-        'margin.t':Math.min(d.t||60,50),
-        'margin.b':Math.min(d.b||40,36),
-        height:Math.round(d.height*0.82)
+        'margin.l':barHeavy?Math.min(left,80):20,
+        'margin.r':8,
+        'margin.t':Math.min(d.t||60,44),
+        'margin.b':Math.min(d.b||40,28)
       });
       gd._mobAdapted=true;
     }else if(gd._mobAdapted){
-      var patch={height:d.height};
+      var patch={};
       if(d.l!=null)patch['margin.l']=d.l;
       if(d.r!=null)patch['margin.r']=d.r;
       if(d.t!=null)patch['margin.t']=d.t;

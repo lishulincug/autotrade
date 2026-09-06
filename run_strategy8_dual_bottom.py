@@ -150,7 +150,6 @@ def build_dashboard(board, screen_df, orders, equity, bt_summary, out_html):
     n_conf = int((screen_df['bottom_status'] == 'confirmed').sum()) if len(screen_df) else 0
     parts = [
         '<html><head><meta charset="utf-8">'
-        '<meta name="viewport" content="width=device-width, initial-scale=1">'
         '<title>策略8 双底阶梯仪表盘</title>',
         '<style>body{font-family:Segoe UI,Microsoft YaHei,sans-serif;margin:24px;background:#f4f6f8}'
         'h1{color:#1f4e79}.card{background:#fff;padding:16px;border-radius:8px;margin-bottom:16px;'
@@ -178,27 +177,26 @@ def build_dashboard(board, screen_df, orders, equity, bt_summary, out_html):
         parts.append('</div>')
     parts.append("""<script>
 (function(){
-  function isMobile(){return window.matchMedia('(max-width:768px)').matches;}
+  function isMobile(){return Math.min(screen.width, screen.height) <= 768;}
   function adaptPlot(gd){
     if(!window.Plotly||!gd||!gd.layout)return;
     if(!gd._deskLayout){
       var m=gd.layout.margin||{};
-      gd._deskLayout={height:gd.layout.height||400,l:m.l,r:m.r,t:m.t,b:m.b};
+      gd._deskLayout={l:m.l,r:m.r,t:m.t,b:m.b};
     }
     var d=gd._deskLayout;
     if(isMobile()){
       var left=d.l||80;
       var barHeavy=left>100;
       Plotly.relayout(gd,{
-        'margin.l':barHeavy?Math.min(left,100):36,
-        'margin.r':12,
-        'margin.t':Math.min(d.t||60,50),
-        'margin.b':Math.min(d.b||40,36),
-        height:Math.round(d.height*0.82)
+        'margin.l':barHeavy?Math.min(left,80):20,
+        'margin.r':8,
+        'margin.t':Math.min(d.t||60,44),
+        'margin.b':Math.min(d.b||40,28)
       });
       gd._mobAdapted=true;
     }else if(gd._mobAdapted){
-      var patch={height:d.height};
+      var patch={};
       if(d.l!=null)patch['margin.l']=d.l;
       if(d.r!=null)patch['margin.r']=d.r;
       if(d.t!=null)patch['margin.t']=d.t;
