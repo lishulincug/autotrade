@@ -149,11 +149,17 @@ def build_dashboard(board, screen_df, orders, equity, bt_summary, out_html):
 
     n_conf = int((screen_df['bottom_status'] == 'confirmed').sum()) if len(screen_df) else 0
     parts = [
-        '<html><head><meta charset="utf-8"><title>策略8 双底阶梯仪表盘</title>',
+        '<html><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        '<title>策略8 双底阶梯仪表盘</title>',
         '<style>body{font-family:Segoe UI,Microsoft YaHei,sans-serif;margin:24px;background:#f4f6f8}'
         'h1{color:#1f4e79}.card{background:#fff;padding:16px;border-radius:8px;margin-bottom:16px;'
         'box-shadow:0 1px 3px rgba(0,0,0,.08)} table{border-collapse:collapse;width:100%}'
-        'th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px} th{background:#e8eef5}</style>',
+        'th,td{border:1px solid #ddd;padding:6px 8px;font-size:12px} th{background:#e8eef5}'
+        '@media (max-width:768px){body{margin:0!important;padding:8px!important}'
+        'h1{font-size:18px!important}.card{padding:12px 10px!important}'
+        'table{font-size:11px!important}.card{overflow-x:auto;-webkit-overflow-scrolling:touch}'
+        '.js-plotly-plot,.plotly-graph-div{max-width:100%!important}}</style>',
         '</head><body>',
         '<h1>策略8 · 全市场榜单 + 双底确认 + 自适应阶梯</h1>',
         f'<div class="card"><b>榜单</b> {len(board)} | <b>深度筛</b> {len(screen_df)} | '
@@ -170,6 +176,45 @@ def build_dashboard(board, screen_df, orders, equity, bt_summary, out_html):
         parts.append('<div class="card"><h2>回测摘要</h2>')
         parts.append(bt_summary.to_html(index=False, border=0))
         parts.append('</div>')
+    parts.append("""<script>
+(function(){
+  function isMobile(){return window.matchMedia('(max-width:768px)').matches;}
+  function adaptPlot(gd){
+    if(!window.Plotly||!gd||!gd.layout)return;
+    if(!gd._deskLayout){
+      var m=gd.layout.margin||{};
+      gd._deskLayout={height:gd.layout.height||400,l:m.l,r:m.r,t:m.t,b:m.b};
+    }
+    var d=gd._deskLayout;
+    if(isMobile()){
+      var left=d.l||80;
+      var barHeavy=left>100;
+      Plotly.relayout(gd,{
+        'margin.l':barHeavy?Math.min(left,100):36,
+        'margin.r':12,
+        'margin.t':Math.min(d.t||60,50),
+        'margin.b':Math.min(d.b||40,36),
+        height:Math.round(d.height*0.82)
+      });
+      gd._mobAdapted=true;
+    }else if(gd._mobAdapted){
+      var patch={height:d.height};
+      if(d.l!=null)patch['margin.l']=d.l;
+      if(d.r!=null)patch['margin.r']=d.r;
+      if(d.t!=null)patch['margin.t']=d.t;
+      if(d.b!=null)patch['margin.b']=d.b;
+      Plotly.relayout(gd,patch);
+      gd._mobAdapted=false;
+    }
+  }
+  function run(){document.querySelectorAll('.js-plotly-plot').forEach(adaptPlot);}
+  var timer; function schedule(){clearTimeout(timer);timer=setTimeout(run,200);}
+  if(document.readyState==='complete')schedule();
+  else window.addEventListener('load',schedule);
+  window.addEventListener('resize',schedule);
+  setTimeout(schedule,800); setTimeout(schedule,1800);
+})();
+</script>""")
     parts.append('</body></html>')
     with open(out_html, 'w', encoding='utf-8') as f:
         f.write('\n'.join(parts))
