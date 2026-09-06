@@ -35,6 +35,7 @@ from strategy6_gf_nav_conversion.strategy_g_ladder_trail import run_strategy as 
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import plotly.io as pio
+from plotly.offline.offline import get_plotlyjs_version
 
 # ---------- 配置 ----------
 FUND_LIST_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -347,6 +348,7 @@ def build_fund_figure(res):
         legend=dict(orientation='h', yanchor='bottom', y=1.02,
                     xanchor='left', x=0, font=dict(size=10)),
         hovermode='x unified',
+        dragmode='pan',
         font=dict(family='Microsoft YaHei, Arial', size=12),
         title_text=None
     )
@@ -797,6 +799,63 @@ ROW_CLICK_SCRIPT = """
 </script>
 """
 
+# 温和滚轮缩放：默认 pan，滚轮每格约 ±10%（替代 Plotly 默认偏大步长）
+ZOOM_SCRIPT = """
+<script>
+(function(){
+  var ZOOM_FACTOR = 1.10;
+  function toMs(v){
+    if(v == null) return null;
+    if(typeof v === 'number') return v;
+    var t = Date.parse(v);
+    return isNaN(t) ? null : t;
+  }
+  function axisRange(gd, axName){
+    var ax = gd._fullLayout && gd._fullLayout[axName];
+    if(!ax || !ax.range) return null;
+    var r0 = toMs(ax.range[0]), r1 = toMs(ax.range[1]);
+    if(r0 == null || r1 == null) return null;
+    return [r0, r1];
+  }
+  function softWheelZoom(gd, e){
+    if(!window.Plotly || !gd || !gd._fullLayout) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    var factor = e.deltaY < 0 ? 1 / ZOOM_FACTOR : ZOOM_FACTOR;
+    var xNames = Object.keys(gd._fullLayout).filter(function(k){
+      return /^xaxis\\d*$/.test(k) && gd._fullLayout[k] && gd._fullLayout[k].range;
+    });
+    if(!xNames.length) return;
+    var update = {};
+    xNames.forEach(function(name){
+      var r = axisRange(gd, name);
+      if(!r) return;
+      var mid = (r[0] + r[1]) / 2;
+      var half = (r[1] - r[0]) / 2 * factor;
+      update[name + '.range'] = [new Date(mid - half), new Date(mid + half)];
+    });
+    if(Object.keys(update).length) Plotly.relayout(gd, update);
+  }
+  function bindPlot(gd){
+    if(!gd || gd._softZoomBound) return;
+    gd._softZoomBound = true;
+    if(window.Plotly) Plotly.relayout(gd, {dragmode: 'pan'});
+    gd.addEventListener('wheel', function(e){ softWheelZoom(gd, e); }, {passive: false, capture: true});
+  }
+  function bindAll(){
+    document.querySelectorAll('.js-plotly-plot').forEach(bindPlot);
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', bindAll);
+  } else {
+    bindAll();
+  }
+  setTimeout(bindAll, 500);
+  setTimeout(bindAll, 1500);
+})();
+</script>
+"""
+
 
 def main():
     print("╔" + "═" * 66 + "╗")
@@ -875,8 +934,12 @@ def main():
 
     # ---- HTML 报告 ----
     print("生成 HTML 可视化报告...")
-    # 使用 CDN 加载 plotly.js，避免把 ~3–4MB 脚本内联进 HTML
-    plotly_cdn = '<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>'
+    # CDN 版本必须与本机 plotly.py 捆绑的 plotly.js 一致（否则 bdata 曲线无法解码）
+    plotly_cdn = (
+        f'<script charset="utf-8" '
+        f'src="https://cdn.plot.ly/plotly-{get_plotlyjs_version()}.min.js">'
+        f'</script>'
+    )
 
     html_parts = []
     html_parts.append("""<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
@@ -995,7 +1058,7 @@ tr:nth-child(even){background:#fafbfc}
             html_parts.append(build_fund_params_block(res_r))
             html_parts.append('</div>')
         html_parts.append(pio.to_html(fig, include_plotlyjs=False, full_html=False,
-                                      config={'displaylogo': False}))
+                                      config={'displaylogo': False, 'scrollZoom': True}))
         html_parts.append('</div>')
     html_parts.append('</div>')
 
@@ -1041,7 +1104,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeParamMo
 
     html_parts.append("""<div class="card" style="color:#999;font-size:12px">
     ⚠ 以上为历史回测结果，不构成投资建议。实际录入广发系统前请结合当前市场环境判断。</div>
-</div>""" + SORT_SCRIPT + ROW_CLICK_SCRIPT + """</body></html>""")
+</div>""" + SORT_SCRIPT + ROW_CLICK_SCRIPT + ZOOM_SCRIPT + """</body></html>""")
 
     html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              'gf_strategy_dashboard.html')
