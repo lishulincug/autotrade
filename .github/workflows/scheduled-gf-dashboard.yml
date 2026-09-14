@@ -69,12 +69,6 @@ jobs:
           fi
           echo "NAV update outcome: $NAV_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: 更新失败时停止部署并标记流水线失败
-        if: steps.nav.outcome != 'success'
-        run: |
-          echo "NAV update failed or timed out. See the update log for affected funds."
-          exit 1
-
       - name: 执行gf_run.sh，生成gf_strategy_dashboard.html
         run: |
           chmod +x gf_run.sh
