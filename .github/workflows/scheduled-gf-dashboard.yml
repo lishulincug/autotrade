@@ -1,8 +1,8 @@
 name: 更新基金净值和策略仪表盘
 on:
-  # 每周一、三、五北京时间 09:45；手动运行和 main 推送也执行更新。
+  # 每周一、三、五北京时间 09:40；手动运行和 main 推送也执行更新。
   schedule:
-    - cron: '45 1 * * 1,3,5'
+    - cron: '40 1 * * 1,2,3,4,5'
   # 允许网页上手动点按钮触发调试，非常重要
   workflow_dispatch:
   # main 分支有推送时同步构建部署
@@ -48,17 +48,22 @@ jobs:
       - name: 验证净值更新逻辑
         run: python -m unittest discover -s tests -p 'test_update_fund_nav.py'
 
-      - name: 增量更新基金净值（最多 4 分钟）
+      - name: 增量更新基金净值（最多 15 分钟）
         id: nav
-        timeout-minutes: 4
+        timeout-minutes: 15
         continue-on-error: true
-        run: python -u update_fund_nav.py --max-seconds 180 --fund-timeout 20
+        run: python -u update_fund_nav.py --max-seconds 900 --fund-timeout 60
 
-      - name: 提交成功更新的基金缓存到 main
+      - name: 提交已更新的基金缓存到 main
+        id: cache_commit
         env:
           NAV_OUTCOME: ${{ steps.nav.outcome }}
         run: |
           git add -- .data_cache/fund_*_2019-01-01_2026-12-31.csv
+          staged_files="$(git diff --cached --name-only)"
+          staged_count="$(printf '%s\n' "$staged_files" | sed '/^$/d' | wc -l | tr -d ' ')"
+          commit_created=false
+          commit_sha=""
           if git diff --cached --quiet; then
             echo "No NAV cache changes to commit."
           else
@@ -66,8 +71,28 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git commit -m "chore(data): incrementally update fund NAV"
             git push origin HEAD:main
+            commit_created=true
+            commit_sha="$(git rev-parse HEAD)"
           fi
-          echo "NAV update outcome: $NAV_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "nav_outcome=$NAV_OUTCOME"
+            echo "staged_count=$staged_count"
+            echo "commit_created=$commit_created"
+            echo "commit_sha=$commit_sha"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Fund NAV cache update"
+            if [ "$NAV_OUTCOME" = "success" ]; then
+              echo "- NAV update: completed successfully."
+            else
+              echo "- :warning: NAV update was incomplete; successful fund caches were still processed."
+            fi
+            echo "- Staged cache files: $staged_count"
+            echo "- Commit created: $commit_created"
+            if [ -n "$commit_sha" ]; then
+              echo "- Commit SHA: $commit_sha"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 执行gf_run.sh，生成gf_strategy_dashboard.html
         run: |
