@@ -1,0 +1,19 @@
+{
+  "timezone": "Asia/Shanghai",
+  "preferred_run_time": "09:50",
+  "quote_max_age_minutes": 30,
+  "reference_max_gap_minutes": 15,
+  "premium_alert_pct": 3,
+  "portfolio_growth_alert_weight": 0.30,
+  "assets": [
+    {"id":"bond30","name":"30年国债ETF博时","symbol":"sh511130","secid":"1.511130","group":"long_bond","currency":"CNY","weight":null,"cost":null},
+    {"id":"bond10","name":"十年国债ETF国泰","symbol":"sh511260","secid":"1.511260","group":"long_bond","currency":"CNY","weight":null,"cost":null},
+    {"id":"dividend","name":"中证红利指数","symbol":"sh000922","secid":"1.000922","group":"dividend","currency":"CNY","is_index":true,"weight":null,"cost":null},
+    {"id":"nasdaq_tech","name":"纳指科技ETF景顺","symbol":"sz159509","secid":"0.159509","group":"growth","currency":"CNY","weight":null,"cost":null},
+    {"id":"hangseng_tech","name":"恒生科技指数","symbol":"hkHSTECH","secid":null,"group":"growth","currency":"HKD","is_index":true,"weight":null,"cost":null},
+    {"id":"gold","name":"黄金ETF代理：华安黄金ETF","symbol":"sh518880","secid":"1.518880","group":"gold","currency":"CNY","proxy":true,"weight":null,"cost":null},
+    {"id":"oil","name":"石油股票ETF代理：国泰中证油气产业ETF","symbol":"sh561360","secid":"1.561360","group":"energy","currency":"CNY","proxy":true,"weight":null,"cost":null},
+    {"id":"bse50","name":"北证50指数","symbol":"bj899050","secid":"0.899050","group":"growth","currency":"CNY","is_index":true,"weight":null,"cost":null},
+    {"id":"chinext","name":"创业板指数","symbol":"sz399006","secid":"0.399006","group":"growth","currency":"CNY","is_index":true,"weight":null,"cost":null}
+  ]
+}

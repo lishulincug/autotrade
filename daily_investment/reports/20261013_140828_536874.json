@@ -1,0 +1,452 @@
+{
+  "generated_at": "2026-10-13T14:08:28.536874+08:00",
+  "results": [
+    {
+      "asset": {
+        "id": "bond30",
+        "name": "30年国债ETF博时",
+        "symbol": "sh511130",
+        "secid": "1.511130",
+        "group": "long_bond",
+        "currency": "CNY",
+        "weight": null,
+        "cost": null
+      },
+      "quote": {
+        "price": 110.263,
+        "previous_close": 110.264,
+        "asof": "2026-10-13T14:08:27+08:00",
+        "currency": "CNY",
+        "status": "ok",
+        "provider_name": "30年国债ETF博时",
+        "source_url": "https://qt.gtimg.cn/q=sh511130"
+      },
+      "quote_quality": "当日有效",
+      "metrics": {
+        "status": "ok",
+        "asof": "2026-10-12",
+        "observations": 259,
+        "adjustment": "qfq",
+        "last": 110.264,
+        "return_5d_pct": 0.5966608886050606,
+        "ma5": 109.7506,
+        "return_20d_pct": 1.4416221238856552,
+        "ma20": 109.08375,
+        "return_60d_pct": 3.6520365861683057,
+        "ma60": 108.23286666666667,
+        "max_drawdown_pct": -4.8033118641248596,
+        "annualized_vol_pct": 4.939563136149961,
+        "trend": "偏强",
+        "source_url": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=1.511130&klt=101&fqt=1&lmt=260&beg=19900101&end=20500101&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61"
+      },
+      "premium": {
+        "status": "missing",
+        "reason": "未提供有效同期参考价值"
+      },
+      "price_pnl_pct": null,
+      "notes": [
+        "历史日线偏强：可保留合理底仓，避免仅依据趋势追涨",
+        "与另一国债ETF合并管理久期；30年品种利率敏感度更高"
+      ],
+      "errors": []
+    },
+    {
+      "asset": {
+        "id": "bond10",
+        "name": "十年国债ETF国泰",
+        "symbol": "sh511260",
+        "secid": "1.511260",
+        "group": "long_bond",
+        "currency": "CNY",
+        "weight": null,
+        "cost": null
+      },
+      "quote": {
+        "price": 135.039,
+        "previous_close": 134.967,
+        "asof": "2026-10-13T14:08:27+08:00",
+        "currency": "CNY",
+        "status": "ok",
+        "provider_name": "十年国债ETF国泰",
+        "source_url": "https://qt.gtimg.cn/q=sh511260"
+      },
+      "quote_quality": "当日有效",
+      "metrics": {
+        "status": "ok",
+        "asof": "2026-10-12",
+        "observations": 259,
+        "adjustment": "qfq",
+        "last": 134.967,
+        "return_5d_pct": 0.09715506244623029,
+        "ma5": 134.846,
+        "return_20d_pct": 0.2704248790888819,
+        "ma20": 134.7358,
+        "return_60d_pct": 0.9763433137316646,
+        "ma60": 134.36078333333333,
+        "max_drawdown_pct": -0.7562430030386813,
+        "annualized_vol_pct": 1.387767163627841,
+        "trend": "偏强",
+        "source_url": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=1.511260&klt=101&fqt=1&lmt=260&beg=19900101&end=20500101&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61"
+      },
+      "premium": {
+        "status": "missing",
+        "reason": "未提供有效同期参考价值"
+      },
+      "price_pnl_pct": null,
+      "notes": [
+        "历史日线偏强：可保留合理底仓，避免仅依据趋势追涨",
+        "与另一国债ETF合并管理久期；30年品种利率敏感度更高"
+      ],
+      "errors": []
+    },
+    {
+      "asset": {
+        "id": "dividend",
+        "name": "中证红利指数",
+        "symbol": "sh000922",
+        "secid": "1.000922",
+        "group": "dividend",
+        "currency": "CNY",
+        "is_index": true,
+        "weight": null,
+        "cost": null
+      },
+      "quote": {
+        "price": 5635.67,
+        "previous_close": 5618.87,
+        "asof": "2026-10-13T14:08:16+08:00",
+        "currency": "CNY",
+        "status": "ok",
+        "provider_name": "中证红利",
+        "source_url": "https://qt.gtimg.cn/q=sh000922"
+      },
+      "quote_quality": "当日有效",
+      "metrics": {
+        "status": "ok",
+        "asof": "2026-10-12",
+        "observations": 259,
+        "adjustment": "qfq",
+        "last": 5618.87,
+        "return_5d_pct": 3.295646738730773,
+        "ma5": 5539.646,
+        "return_20d_pct": -0.5206894842323617,
+        "ma20": 5544.7655,
+        "return_60d_pct": 8.386605196659014,
+        "ma60": 5525.998833333333,
+        "max_drawdown_pct": -15.96361099166238,
+        "annualized_vol_pct": 14.260930957936472,
+        "trend": "偏强",
+        "source_url": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=1.000922&klt=101&fqt=1&lmt=260&beg=19900101&end=20500101&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61"
+      },
+      "premium": {
+        "status": "missing",
+        "reason": "未提供有效同期参考价值"
+      },
+      "price_pnl_pct": null,
+      "notes": [
+        "历史日线偏强：可保留合理底仓，避免仅依据趋势追涨",
+        "指数点位仅用于市场观察，实际基金可能存在跟踪误差"
+      ],
+      "errors": []
+    },
+    {
+      "asset": {
+        "id": "nasdaq_tech",
+        "name": "纳指科技ETF景顺",
+        "symbol": "sz159509",
+        "secid": "0.159509",
+        "group": "growth",
+        "currency": "CNY",
+        "weight": null,
+        "cost": null
+      },
+      "quote": {
+        "price": 3.213,
+        "previous_close": 3.183,
+        "asof": "2026-10-13T14:08:27+08:00",
+        "currency": "CNY",
+        "status": "ok",
+        "provider_name": "纳指科技ETF景顺",
+        "source_url": "https://qt.gtimg.cn/q=sz159509"
+      },
+      "quote_quality": "当日有效",
+      "metrics": {
+        "status": "ok",
+        "asof": "2026-10-12",
+        "observations": 259,
+        "adjustment": "qfq",
+        "last": 3.183,
+        "return_5d_pct": 3.3441558441558383,
+        "ma5": 3.2234,
+        "return_20d_pct": 12.35439463466288,
+        "ma20": 2.98925,
+        "return_60d_pct": 21.303353658536572,
+        "ma60": 2.80925,
+        "max_drawdown_pct": -19.74947807933195,
+        "annualized_vol_pct": 30.11990199461595,
+        "trend": "偏强",
+        "source_url": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=0.159509&klt=101&fqt=1&lmt=260&beg=19900101&end=20500101&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61"
+      },
+      "premium": {
+        "status": "missing",
+        "reason": "未提供有效同期参考价值"
+      },
+      "price_pnl_pct": null,
+      "notes": [
+        "实时溢价未核实：不输出估算溢价，先查基金管理人公告及可靠IOPV",
+        "历史日线偏强：可保留合理底仓，避免仅依据趋势追涨"
+      ],
+      "errors": []
+    },
+    {
+      "asset": {
+        "id": "hangseng_tech",
+        "name": "恒生科技指数",
+        "symbol": "hkHSTECH",
+        "secid": null,
+        "group": "growth",
+        "currency": "HKD",
+        "is_index": true,
+        "weight": null,
+        "cost": null
+      },
+      "quote": {
+        "price": 4132.19,
+        "previous_close": 4169.57,
+        "asof": "2026-10-13T13:53:28+08:00",
+        "currency": "HKD",
+        "status": "ok",
+        "provider_name": "恒生科技指数",
+        "source_url": "https://qt.gtimg.cn/q=hkHSTECH"
+      },
+      "quote_quality": "当日有效",
+      "metrics": {
+        "status": "ok",
+        "asof": "2026-10-12",
+        "observations": 259,
+        "adjustment": "price",
+        "last": 4169.57,
+        "return_5d_pct": -0.33726288817501615,
+        "ma5": 4171.672,
+        "return_20d_pct": -3.4949092365127776,
+        "ma20": 4278.197,
+        "return_60d_pct": -9.811449719564724,
+        "ma60": 4548.9321666666665,
+        "max_drawdown_pct": -39.0473539771894,
+        "annualized_vol_pct": 27.72533956337017,
+        "trend": "偏弱",
+        "source_url": "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=hkHSTECH%2Cday%2C%2C%2C260%2Cqfq"
+      },
+      "premium": {
+        "status": "missing",
+        "reason": "未提供有效同期参考价值"
+      },
+      "price_pnl_pct": null,
+      "notes": [
+        "历史日线偏弱：暂缓集中补仓；若超配，结合业绩和反弹承接评估再平衡",
+        "指数点位仅用于市场观察，实际基金可能存在跟踪误差"
+      ],
+      "errors": []
+    },
+    {
+      "asset": {
+        "id": "gold",
+        "name": "黄金ETF代理：华安黄金ETF",
+        "symbol": "sh518880",
+        "secid": "1.518880",
+        "group": "gold",
+        "currency": "CNY",
+        "proxy": true,
+        "weight": null,
+        "cost": null
+      },
+      "quote": {
+        "price": 8.6,
+        "previous_close": 8.585,
+        "asof": "2026-10-13T14:08:26+08:00",
+        "currency": "CNY",
+        "status": "ok",
+        "provider_name": "黄金ETF华安",
+        "source_url": "https://qt.gtimg.cn/q=sh518880"
+      },
+      "quote_quality": "当日有效",
+      "metrics": {
+        "status": "ok",
+        "asof": "2026-10-12",
+        "observations": 259,
+        "adjustment": "qfq",
+        "last": 8.585,
+        "return_5d_pct": 0.1984126984127199,
+        "ma5": 8.5656,
+        "return_20d_pct": -6.318201658664324,
+        "ma20": 8.8241,
+        "return_60d_pct": 0.515162158997784,
+        "ma60": 8.82755,
+        "max_drawdown_pct": -30.519153225806438,
+        "annualized_vol_pct": 30.325308447848787,
+        "trend": "偏弱",
+        "source_url": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=1.518880&klt=101&fqt=1&lmt=260&beg=19900101&end=20500101&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61"
+      },
+      "premium": {
+        "status": "missing",
+        "reason": "未提供有效同期参考价值"
+      },
+      "price_pnl_pct": null,
+      "notes": [
+        "代理资产，不能视为本人实际基金；油气股票不等于原油现货",
+        "历史日线偏弱：暂缓集中补仓；若超配，结合业绩和反弹承接评估再平衡"
+      ],
+      "errors": []
+    },
+    {
+      "asset": {
+        "id": "oil",
+        "name": "石油股票ETF代理：国泰中证油气产业ETF",
+        "symbol": "sh561360",
+        "secid": "1.561360",
+        "group": "energy",
+        "currency": "CNY",
+        "proxy": true,
+        "weight": null,
+        "cost": null
+      },
+      "quote": {
+        "price": 1.465,
+        "previous_close": 1.44,
+        "asof": "2026-10-13T14:08:27+08:00",
+        "currency": "CNY",
+        "status": "ok",
+        "provider_name": "石油ETF国泰",
+        "source_url": "https://qt.gtimg.cn/q=sh561360"
+      },
+      "quote_quality": "当日有效",
+      "metrics": {
+        "status": "ok",
+        "asof": "2026-10-12",
+        "observations": 259,
+        "adjustment": "qfq",
+        "last": 1.44,
+        "return_5d_pct": -1.0309278350515538,
+        "ma5": 1.459,
+        "return_20d_pct": -3.5498995311453507,
+        "ma20": 1.4759,
+        "return_60d_pct": 8.189331329827198,
+        "ma60": 1.4408166666666666,
+        "max_drawdown_pct": -31.475583864118896,
+        "annualized_vol_pct": 28.51523294794503,
+        "trend": "震荡",
+        "source_url": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=1.561360&klt=101&fqt=1&lmt=260&beg=19900101&end=20500101&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61"
+      },
+      "premium": {
+        "status": "missing",
+        "reason": "未提供有效同期参考价值"
+      },
+      "price_pnl_pct": null,
+      "notes": [
+        "代理资产，不能视为本人实际基金；油气股票不等于原油现货"
+      ],
+      "errors": []
+    },
+    {
+      "asset": {
+        "id": "bse50",
+        "name": "北证50指数",
+        "symbol": "bj899050",
+        "secid": "0.899050",
+        "group": "growth",
+        "currency": "CNY",
+        "is_index": true,
+        "weight": null,
+        "cost": null
+      },
+      "quote": {
+        "price": 1015.59,
+        "previous_close": 1011.75,
+        "asof": "2026-10-13T14:08:14+08:00",
+        "currency": "CNY",
+        "status": "ok",
+        "provider_name": "北证50",
+        "source_url": "https://qt.gtimg.cn/q=bj899050"
+      },
+      "quote_quality": "当日有效",
+      "metrics": {
+        "status": "ok",
+        "asof": "2026-10-12",
+        "observations": 259,
+        "adjustment": "qfq",
+        "last": 1011.75,
+        "return_5d_pct": -1.4436424208772891,
+        "ma5": 1026.626,
+        "return_20d_pct": -6.977492552682884,
+        "ma20": 1044.764,
+        "return_60d_pct": -16.325517925815657,
+        "ma60": 1073.6406666666667,
+        "max_drawdown_pct": -38.1355362198321,
+        "annualized_vol_pct": 30.199011745699543,
+        "trend": "偏弱",
+        "source_url": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=0.899050&klt=101&fqt=1&lmt=260&beg=19900101&end=20500101&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61"
+      },
+      "premium": {
+        "status": "missing",
+        "reason": "未提供有效同期参考价值"
+      },
+      "price_pnl_pct": null,
+      "notes": [
+        "历史日线偏弱：暂缓集中补仓；若超配，结合业绩和反弹承接评估再平衡",
+        "指数点位仅用于市场观察，实际基金可能存在跟踪误差"
+      ],
+      "errors": []
+    },
+    {
+      "asset": {
+        "id": "chinext",
+        "name": "创业板指数",
+        "symbol": "sz399006",
+        "secid": "0.399006",
+        "group": "growth",
+        "currency": "CNY",
+        "is_index": true,
+        "weight": null,
+        "cost": null
+      },
+      "quote": {
+        "price": 2973.9,
+        "previous_close": 2963.82,
+        "asof": "2026-10-13T14:08:27+08:00",
+        "currency": "CNY",
+        "status": "ok",
+        "provider_name": "创业板指",
+        "source_url": "https://qt.gtimg.cn/q=sz399006"
+      },
+      "quote_quality": "当日有效",
+      "metrics": {
+        "status": "ok",
+        "asof": "2026-10-12",
+        "observations": 259,
+        "adjustment": "qfq",
+        "last": 2963.82,
+        "return_5d_pct": -5.605416871030822,
+        "ma5": 3064.33,
+        "return_20d_pct": -9.819719766928847,
+        "ma20": 3260.967,
+        "return_60d_pct": -22.87202067280293,
+        "ma60": 3425.1511666666665,
+        "max_drawdown_pct": -32.20890258211935,
+        "annualized_vol_pct": 34.57813471870799,
+        "trend": "偏弱",
+        "source_url": "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=0.399006&klt=101&fqt=1&lmt=260&beg=19900101&end=20500101&fields1=f1%2Cf2%2Cf3%2Cf4%2Cf5%2Cf6&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61"
+      },
+      "premium": {
+        "status": "missing",
+        "reason": "未提供有效同期参考价值"
+      },
+      "price_pnl_pct": null,
+      "notes": [
+        "历史日线偏弱：暂缓集中补仓；若超配，结合业绩和反弹承接评估再平衡",
+        "指数点位仅用于市场观察，实际基金可能存在跟踪误差"
+      ],
+      "errors": []
+    }
+  ],
+  "valid_quote_count": 9
+}
